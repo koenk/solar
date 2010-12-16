@@ -1,0 +1,28 @@
+-- MySQL dump 10.11
+--
+-- Host: localhost    Database: solar
+-- ------------------------------------------------------
+-- Server version	5.0.75-0ubuntu10.5
+
+
+--
+-- Table structure for table `stats`
+--
+
+CREATE TABLE IF NOT EXISTS `stats` (
+  `time` timestamp NOT NULL default CURRENT_TIMESTAMP,
+  `flags` int(2) unsigned NOT NULL,
+  `pv_volt` int(2) unsigned NOT NULL COMMENT '*10',
+  `pv_amp` int(2) unsigned NOT NULL COMMENT '*100',
+  `grid_freq` int(2) unsigned NOT NULL COMMENT '*100',
+  `grid_volt` int(2) unsigned NOT NULL,
+  `grid_pow` int(2) unsigned NOT NULL,
+  `total_pow` int(3) unsigned NOT NULL COMMENT '*100',
+  `temp` int(1) unsigned NOT NULL,
+  `optime` int(4) unsigned NOT NULL,
+  `hasdata` tinyint(1) NOT NULL default '1',
+  PRIMARY KEY  (`time`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+
+-- Dump completed on 2010-12-16  1:23:14
