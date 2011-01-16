@@ -51,5 +51,14 @@ body {
 }
 
 #intro {
-	width: 800px;
+	width: 780px;
 	padding: 10px;
+}
+
+#tab_t_current {
+	padding: 10px 25px 15px;
+}
+
+td {
+	padding: 2px 5px 1px 7px;
+

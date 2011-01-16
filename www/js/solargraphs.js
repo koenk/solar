@@ -1,5 +1,6 @@
+var pow_chart;
 $(document).ready(function() {
-	chart1 = new Highcharts.Chart({
+	pow_chart = new Highcharts.Chart({
 		credits: {enabled: false},
 		chart: {
 			renderTo: 'power_day',
@@ -25,6 +26,12 @@ $(document).ready(function() {
 			showFirstLabel: false
 		},
 		tooltip: {
+			formatter: function() {
+               var point = this.points[0];
+               return '<b>'+ point.series.name +'</b><br/>'+
+                  Highcharts.dateFormat('%a %e-%m-%Y %H:%M', this.x) + '<br/>'+
+                  point.y + ' Watt';
+            },
 			shared: true               
 		},
 		legend: {
