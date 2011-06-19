@@ -1,5 +1,14 @@
 #!/usr/bin/env python2
 
+# 
+# Talk with the Soladin 600 over the serial port.
+#
+# Currently, it requests the current stats, and puts those in a MySQL database.
+#
+# Huge credits go to the following website for figuring out the protocol:
+#  http://wiki.firestorm.cx/index.php/Soladin
+#
+
 import sys, time
 
 from serial import Serial

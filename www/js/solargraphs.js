@@ -64,10 +64,12 @@ $(document).ready(function() {
 			pointStart: power_day_start, // See the index for this var
 			data: power_day_data // See the index for this var
 			}]
-		});
-		// -----------------------------------
+		}
+    );
 		
-		chart1 = new Highcharts.Chart({
+    // -----------------------------------
+		
+	chart1 = new Highcharts.Chart({
 		credits: {enabled: false},
 		chart: {
 			renderTo: 'power_total',
@@ -79,7 +81,7 @@ $(document).ready(function() {
 		},
 		xAxis: {
 			type: 'datetime',
-			tickInterval: 5 * 24 * 3600 * 1000, // Five days
+			//tickInterval: 5 * 24 * 3600 * 1000, // Five days
 			maxZoom: 3600000, // hour
 			title: {
 				text: 'Datum'
@@ -119,7 +121,7 @@ $(document).ready(function() {
 			formatter: function() {
 				return '<b>' + this.series.name + '</b><br>' +
 					Highcharts.dateFormat('%A %e-%m-%Y', this.x) + '<br>' +
-					this.y + ' ' + (this.series.name == 'Piek vermogen' ? 'W' : 'Kwh');
+					this.y + ' ' + (this.series.name == 'Piek vermogen' ? 'W' : 'kWh');
 			}
 		},
 		legend: {
@@ -160,5 +162,114 @@ $(document).ready(function() {
 				yAxis: 1,
 				data: power_peak_data
 			}]
-		});
-	});
+		}
+    );
+    
+    // -----------------------------------
+    // -- WEEK
+    // -----------------------------------
+    
+    week_chart = new Highcharts.Chart({
+		credits: {enabled: false},
+		chart: {
+			renderTo: 'week_total',
+			zoomType: 'x',
+			spacingRight: 20
+		},
+		title: {
+			text: 'Opbrengst per week'
+		},
+		xAxis: {
+            min: 0,
+            max: 53,
+			tickInterval: 2,
+			maxZoom: 3, // hour
+			title: {
+				text: 'Week'
+			}
+		},
+		yAxis: { // Primary (KWh)
+			title: {
+				text: 'kWh'
+			},
+			min: 0,
+			startOnTick: false,
+			showFirstLabel: false,
+			labels: {
+				formatter: function() {
+					return this.value + ' KWh';
+				}
+			}
+		},
+		tooltip: {
+			shared: false,
+			formatter: function() {
+				return '<b>' + this.series.name + '</b><br>' +
+					'Week ' + this.x + '<br>' +
+					this.y + ' kWh';
+			}
+		},
+		legend: {
+			enabled: false
+		},
+		series: [{
+				type: 'column',
+				name: 'Week totaal',
+				pointStart: 0,
+				data: week_total_data // See the index for this var
+			}]
+		}
+    );
+    
+    // -----------------------------------
+    // -- MONTH
+    // -----------------------------------
+    
+    month_chart = new Highcharts.Chart({
+		credits: {enabled: false},
+		chart: {
+			renderTo: 'month_total',
+			spacingRight: 20
+		},
+		title: {
+			text: 'Opbrengst per maand'
+		},
+		xAxis: {
+            categories: ['Jan', 'Feb', 'Mrt', 'Apr', 'Mei', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dec'],
+			title: {
+				text: 'Week'
+			}
+		},
+		yAxis: { // Primary (KWh)
+			title: {
+				text: 'kWh'
+			},
+			min: 0,
+			startOnTick: false,
+			showFirstLabel: false,
+			labels: {
+				formatter: function() {
+					return this.value + ' KWh';
+				}
+			}
+		},
+		tooltip: {
+			shared: false,
+			formatter: function() {
+				return '<b>' + this.series.name + '</b><br>' +
+					this.x + '<br>' +
+					this.y + ' kWh';
+			}
+		},
+		legend: {
+			enabled: false
+		},
+		series: [{
+				type: 'column',
+				name: 'Maand totaal',
+				data: month_total_data // See the index for this var
+			}]
+		}
+    );
+	}
+);
