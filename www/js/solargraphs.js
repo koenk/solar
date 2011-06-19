@@ -79,29 +79,55 @@ $(document).ready(function() {
 		},
 		xAxis: {
 			type: 'datetime',
-			tickInterval: 24 * 3600 * 1000, // day
+			tickInterval: 5 * 24 * 3600 * 1000, // Five days
 			maxZoom: 3600000, // hour
 			title: {
-				text: 'Tijd'
+				text: 'Datum'
 			}
 		},
-		yAxis: {
+		yAxis: [{ // Primary (KWh)
 			title: {
 				text: 'kWh'
 			},
 			min: 0.0,
 			startOnTick: false,
-			showFirstLabel: false
-		},
+			showFirstLabel: false,
+			labels: {
+				formatter: function() {
+					return this.value + ' KWh';
+				}
+			}
+		}, { // Seconday (right, Watt)
+			title: {
+				text: 'W'
+			},
+			min: 0,
+			startOnTick: false,
+			showFirstLabel: false,
+			labels: {
+				formatter: function() {
+					return this.value + ' W';
+				},
+				style: {
+					color: '#4572A7'
+				}
+			},
+			opposite: true
+		}],
 		tooltip: {
-			shared: true               
+			shared: false,
+			formatter: function() {
+				return '<b>' + this.series.name + '</b><br>' +
+					Highcharts.dateFormat('%A %e-%m-%Y', this.x) + '<br>' +
+					this.y + ' ' + (this.series.name == 'Piek vermogen' ? 'W' : 'Kwh');
+			}
 		},
 		legend: {
 			enabled: false
 		},
 		plotOptions: {
 			spline: {
-				lineWidth: 2,
+				lineWidth: 1,
 				marker: {
 					enabled: false,
 					states: {
@@ -114,17 +140,25 @@ $(document).ready(function() {
 				shadow: false,
 				states: {
 					hover: {
-						lineWidth: 2
+						lineWidth: 1
 					}
 				}
 			}
 		}, 
 		series: [{
-			type: 'column',
-			name: 'Vermogen',
-			pointInterval: 24 * 60 * 60 * 1000,
-			pointStart: power_total_start, // See the index for this var
-			data: power_total_data // See the index for this var
+				type: 'column',
+				name: 'Dag totaal',
+				pointInterval: 24 * 60 * 60 * 1000, // Day
+				pointStart: power_total_start, // See the index for this var
+				data: power_total_data // See the index for this var
+			},
+			{
+				type: 'spline',
+				name: 'Piek vermogen',
+				pointInterval: 24 * 60 * 60 * 1000, // Day
+				pointStart: power_total_start,
+				yAxis: 1,
+				data: power_peak_data
 			}]
 		});
 	});

@@ -7,7 +7,7 @@ mysql_connect($db_host, $db_user, $db_password) or die("Could not connect to dat
 mysql_select_db($db_database) or die("Could not find database!");
 
 // All data for first graph
-$res = mysql_query("SELECT * FROM `stats` ORDER BY `time`");
+$res = mysql_query("SELECT * FROM `stats` WHERE DATEDIFF(CURDATE(), `time`)<2 ORDER BY `time`");
 if (!$res) die('Invalid query: ' . mysql_error());
 // This is fucked up... I need the first date/time for the graph... So we fetch
 // the first row here, and the rest of the rows are read and directly printed
@@ -27,15 +27,22 @@ $powstart = $row->hasdata ? $row->grid_pow : "null";
 
 
 // Request the total data of each day by asking for the data NEXT day, at 00:00:xx
-$dates_res = mysql_query("SELECT DATE(`time`),`total_pow` FROM `stats` WHERE HOUR(`time`)=0 AND MINUTE(`time`) < 5");
+$dates_res = mysql_query("SELECT DATE(`time`),`total_pow` FROM `stats` WHERE HOUR(`time`)=0 AND MINUTE(`time`) < 5 ORDER BY `time` ASC");
 if (!$dates_res) die('Invalid query: ' . mysql_error());
 $row = mysql_fetch_array($dates_res); // Array because the DATE thing is a bitch with objects?
 if (!$row) die("No data!");
 $tst_date = explode("-", $row["DATE(`time`)"]);
-$tst_year = $ts_date[0];
-$tst_month =  $ts_date[1]-1; // JS months are zero based, again...
-$tst_day = $ts_date[2];
+$tst_year = $tst_date[0];
+$tst_month =  $tst_date[1]-1; // JS months are zero based, again...
+$tst_day = $tst_date[2];
 $powtotstart = $row["total_pow"] / 100.;
+
+// Related to the thing above this... The peak power of each day
+$dates_peak_res = mysql_query("SELECT MAX(`grid_pow`) as `peak_pow` FROM `stats` GROUP BY DATE(`time`)");
+if (!$dates_peak_res) die("Invalid query: " . mysql_error());
+$row = mysql_fetch_object($dates_peak_res);
+if (!$row) die("No data!");
+$powpeakstart = $row->peak_pow;
 
 
 $current_res = mysql_query("SELECT * FROM `stats` ORDER BY `time` DESC LIMIT 1");
@@ -82,8 +89,8 @@ $today_pow = ($current_data->total_pow - $start_pow) / 100.;
 									}
 								?>
 							];
-
-		var power_total_start = Date.UTC(<?php echo $ts_year . ", " . $ts_month . ", " . $ts_day; ?>);
+		
+		var power_total_start = Date.UTC(<?php echo $tst_year . ", " . $tst_month . ", " . $tst_day; ?>);
 		var power_total_data = [
 									<?php					
 										$ptot = $powtotstart;
@@ -93,6 +100,18 @@ $today_pow = ($current_data->total_pow - $start_pow) / 100.;
 											$ptot = $row->total_pow / 100.;
 										}
                                         echo $today_pow;
+									?>
+								];
+		var power_peak_data = [
+									<?php					
+										echo $powpeakstart;
+										while ($row = mysql_fetch_object($dates_peak_res)) {
+											echo ", ";
+											echo $row->peak_pow;
+                                            //echo ", ";
+											//$ptot = $row->total_pow / 100.;
+										}
+                                        //echo $today_pow;
 									?>
 								];
 		
