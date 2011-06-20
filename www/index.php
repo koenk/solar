@@ -506,6 +506,11 @@ $money_today = $today_pow * mysql_fetch_object($today_mon_res)->mon;
                 <?php endif; ?>
 			</div>
 		</div>
+        <div id="footer">
+            
+            <a href="http://websvn.chozo.nl/listing.php?repname=dump&path=%2FWeb%2Fsolar%2F">Source code</a><br />
+            Made by <a href="http://chozo.nl/">Chozo.nl</a>
+        </div>
 	</div>
 </body>
 </html>
