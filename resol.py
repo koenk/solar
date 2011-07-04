@@ -1,11 +1,33 @@
+#!/usr/bin/env python2
+
+# 
+# Talk with the Resol DeltaSol BS Plus over the LAN
+#
+# Currently, it requests the current stats, and puts those in a MySQL database.
+#
+# Huge thanks to Resol for releasing the specifications of their VBus protocol:
+#
+#  http://hobbyelektronik.org/w/images/0/04/VBus-Protokollspezifikation.pdf
+#  http://resol-vbus.googlegroups.com/web/VBus_Protokol_en_20071218.pdf
+#
+# I got all my information from the first one mostly, but beware, it's written
+# in german... Couldn't find an english version...
+#
+
 import socket
 
+# Our own config (vbus lan + database settings)
+try: import config
+except: sys.exit("ERROR: config.py not found! Copy config.example.py for a template.")
+
+"""Logs in onto the DeltaSol BS Plus over LAN. Also starts (and maintains) the
+actual stream of data."""
 def login():
     dat = recv()
 
     if dat != "+HELLO\n": return
     
-    send("PASS vbus\n")
+    send("PASS %s\n" % config.vbus_pass)
     
     dat = recv()
     
@@ -21,8 +43,11 @@ def login():
     print
     print
     
-    while parsestream(recv()): pass
+    buf = recv()
     
+    while parsestream(buf): buf += recv()
+    
+"""Receives 1024 bytes from the stream. Adds debug."""
 def recv():
     print "Receiving..."
     print sock
@@ -31,14 +56,21 @@ def recv():
     
     return dat
     
+"""Sends given bytes over the stram. Adds debug."""
 def send(dat):
     print "> '%s' (%s)" % (dat, ' '.join([str(ord(i)) for i in dat]))
     sock.send(dat)
     
+"""Parses the given stream, and searches for VBus messages (by looking for the
+SYNC-byte 0xAA). If no usefull messages were found, it will return True (causing
+the login to read more data from the stream). Otherwise returns the latest stats
+from the device in a dict. Validates data with checksum."""
 def parsestream(data):
     if data.count(chr(0xAA)) < 2:
         return True
 
+    usefulldata = None
+        
     msgs = data.split(chr(0xAA))[1:-1]
     for msg in msgs:
         print ' '.join([hex(ord(i))[2:] for i in msg])
@@ -63,8 +95,15 @@ def parsestream(data):
                 print "Checksum:\t", hex(chk)
                 print "Our chk:\t", hex(getchk(msg[0:8]))
                 
+                if getchk(msg[0:8]) != chk:
+                    print "!!CHECKSUM MISMATH!!\n"
+                    continue
+                
                 payload = msg[9:9+(6*frames)]
-                parsepayload(payload)
+                ret = parsepayload(payload)
+                
+                if ret:
+                    usefulldata = ret
                 
             if command == 0x0200:
                 print "DATA (ANSWER NEEDED)"
@@ -91,16 +130,49 @@ def parsestream(data):
         print
        
         print
+     
+    if not usefulldata:
+        return True
         
+    # Stash data in DB
+    print "STASHING MA' STASH"
         
+"""Parses the individual payload of a stat message. It reads and parses the
+frames, each checking their checksum, and injecting their septet byte. It will
+return None if a checksum error occured, otherwise a dict with the stats."""
 def parsepayload(payload):
     print ' '.join([hex(ord(i))[2:] for i in payload])
     
     data = []
     
+    # Numbers are the actual bytes that make up the value, NOT the indices (last
+    # one +1 for that)
+    payloadmap = {'temp1':  (0, 1),
+                  'temp2':  (2, 3),
+                  'temp3':  (4, 5),
+                  'temp4':  (6, 7),
+                  'pump1':  (8, 8),
+                  'pump2':  (9, 9),
+                  'relais': (10, 10),
+                  'errors': (11, 11),
+                  'time':   (12, 13),
+                  'scheme': (14, 14),
+                  'flags':  (15, 15),
+                  'r1time': (16, 17),
+                  'r2time': (18, 19),
+                  'version':(26, 27)
+                 }
+                  
+    
     for i in range(len(payload)/6):
         frame = payload[i*6:i*6+6]
-        print ' '.join([hex(ord(i))[2:] for i in frame])
+        #print ' '.join([hex(ord(i))[2:] for i in frame])
+        
+        chk = ord(frame[5])
+        ourchk = getchk(frame[:-1])
+        if chk != ourchk:
+            print "!!FRAME CHECKSUM MISMATCH!!", chk, ourchk
+            return None
         
         septet = ord(frame[4])
         
@@ -109,10 +181,21 @@ def parsepayload(payload):
                 data.append(chr(ord(frame[j]) | 0x80))
             else:
                 data.append(frame[j])
-                
+         
+    print "injecting septets... ->"
     print ' '.join([hex(ord(i))[2:] for i in data])
     
-    temp1 = gb(data,0,2)
+    
+    vals = {}
+    for i, rng in payloadmap.items():
+        vals[i] = gb(data, rng[0], rng[1]+1)
+        
+    for i,j in vals.items():
+        print "%s\t%s" % (i,j)
+        
+    return vals
+    
+    """temp1 = gb(data,0,2)
     temp2 = gb(data,2,4)
     temp3 = gb(data,4,6)
     temp4 = gb(data,6,8)
@@ -124,12 +207,15 @@ def parsepayload(payload):
     print "Temp3:\t", temp3, hex(temp3)
     print "Temp4:\t", temp4, hex(temp4)
     print "Pump1:\t", pump1, hex(pump1)
-    print "Pump2:\t", pump2, hex(pump2)
+    print "Pump2:\t", pump2, hex(pump2)"""
     
         
+"""Gets the numerical value of a set of bytes in data between begin and end.
+This thing will handle the significance of bytes."""
 def gb(data, begin, end): # GetBytes
     return sum([ord(b)<<(i*8) for i,b in enumerate(data[begin:end])])
     
+"""Generates a checksum byte for the given set of bytes."""
 def getchk(data):   
     chk = 0x7F
     for b in data:
@@ -143,7 +229,7 @@ def getchk(data):
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 print "Connecting..."
-sock.connect(("192.168.2.60", 7053))
+sock.connect(config.address)
 print "Connected"
 
 print sock
