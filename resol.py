@@ -20,6 +20,8 @@ import socket
 try: import config
 except: sys.exit("ERROR: config.py not found! Copy config.example.py for a template.")
 
+from database import DB
+
 """Logs in onto the DeltaSol BS Plus over LAN. Also starts (and maintains) the
 actual stream of data."""
 def login():
@@ -195,20 +197,6 @@ def parsepayload(payload):
         
     return vals
     
-    """temp1 = gb(data,0,2)
-    temp2 = gb(data,2,4)
-    temp3 = gb(data,4,6)
-    temp4 = gb(data,6,8)
-    pump1 = gb(data,8,9)
-    pump2 = gb(data,9,10)
-    
-    print "Temp1:\t", temp1, hex(temp1)
-    print "Temp2:\t", temp2, hex(temp2)
-    print "Temp3:\t", temp3, hex(temp3)
-    print "Temp4:\t", temp4, hex(temp4)
-    print "Pump1:\t", pump1, hex(pump1)
-    print "Pump2:\t", pump2, hex(pump2)"""
-    
         
 """Gets the numerical value of a set of bytes in data between begin and end.
 This thing will handle the significance of bytes."""
@@ -222,6 +210,13 @@ def getchk(data):
         chk = ((chk - ord(b)) % 0x100) & 0x7F
         
     return chk
+    
+def saveinDB(data):
+    # Connect to MySQL database
+    db = DB(config.db['host'], config.db['resol_database'], config.db['user'], config.db['password'])
+    
+    db.execute("INSERT INTO `resol`(`time`, `t1`, `t2`, `p1`, `relais`, `flags`, `errors`, `rt1`) VALUES "
+               "(NULL, '%(temp1)d', '%(temp2)d', '%(pump1)d', '%(relais)d', '%(flags)d', '%(errors)d', '%(r1time)d')" % data)
    
 
 
