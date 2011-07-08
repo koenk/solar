@@ -52,9 +52,8 @@ def login():
 """Receives 1024 bytes from the stream. Adds debug."""
 def recv():
     print "Receiving..."
-    print sock
     dat = sock.recv(1024)
-    print "< '%s' (%s)" % (dat, ' '.join([str(ord(i)) for i in dat]))
+    print "< '%s' (%s)" % ("", ' '.join([str(ord(i)) for i in dat]))
     
     return dat
     
@@ -137,7 +136,7 @@ def parsestream(data):
         return True
         
     # Stash data in DB
-    print "STASHING MA' STASH"
+    saveinDB(usefulldata)
         
 """Parses the individual payload of a stat message. It reads and parses the
 frames, each checking their checksum, and injecting their septet byte. It will
@@ -213,12 +212,12 @@ def getchk(data):
     
 def saveinDB(data):
     # Connect to MySQL database
-    db = DB(config.db['host'], config.db['resol_database'], config.db['user'], config.db['password'])
+    db = DB(config.db['host'], config.db['database'], config.db['user'], config.db['password'])
+    data['table'] = config.db['table_resol']
     
-    db.execute("INSERT INTO `resol`(`time`, `t1`, `t2`, `p1`, `relais`, `flags`, `errors`, `rt1`) VALUES "
+    db.execute("INSERT INTO `%(table)s`(`time`, `t1`, `t2`, `p1`, `relais`, `flags`, `errors`, `rt1`) VALUES "
                "(NULL, '%(temp1)d', '%(temp2)d', '%(pump1)d', '%(relais)d', '%(flags)d', '%(errors)d', '%(r1time)d')" % data)
-   
-
+               
 
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

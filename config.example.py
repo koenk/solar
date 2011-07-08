@@ -1,8 +1,9 @@
 # MySQL database
 db = {}
 db['host'] = "localhost"
-db['database_solar'] = "<solar database>"
-db['database_resol'] = "<resol database>"
+db['database'] = "<database>"
+db['table_solar'] = "<solar table>"
+db['table_resol'] = "<resol table>"
 db['user'] = "<user>"
 db['password'] = "<password>"
 

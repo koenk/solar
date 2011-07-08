@@ -72,7 +72,7 @@ for com, bytes in commands.items():
     commands[com] = ''.join([chr(int(b, 16)) for b in bytes.split(' ')])
 
 # Connect to MySQL database
-db = DB(config.db['host'], config.db['solar_database'], config.db['user'], config.db['password'])
+db = DB(config.db['host'], config.db['database'], config.db['user'], config.db['password'])
 
 # Connect to serial device
 ser = Serial(config.device, config.baudrate, timeout=config.timeout)
@@ -89,9 +89,10 @@ print "[%s]" % time.ctime(),
 if len(read) > 0:
     printbytes(read)
     dec = decode(read, exe)
+    dec['table'] = config.db['table_solar']
     
     # Put it in our MySQL db
-    db.execute("INSERT INTO `stats`(`time`, `flags`, `pv_volt`, `pv_amp`, `grid_freq`, `grid_volt`, `grid_pow`, `total_pow`, `temp`, `optime`) VALUES "
+    db.execute("INSERT INTO `%(table)s`(`time`, `flags`, `pv_volt`, `pv_amp`, `grid_freq`, `grid_volt`, `grid_pow`, `total_pow`, `temp`, `optime`) VALUES "
                "(NULL, '%(flags)d', '%(pv_volt)d', '%(pv_amp)d', '%(grid_freq)d', '%(grid_volt)d', '%(grid_pow)d', '%(total_pow)d', '%(temp)d', '%(optime)d')" % dec)
 else:
     print "Soladin not responding, sun down? :-("
