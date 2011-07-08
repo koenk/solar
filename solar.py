@@ -97,8 +97,8 @@ if len(read) > 0:
 else:
     print "Soladin not responding, sun down? :-("
     # HACK: Just write null-data
-    db.execute("SELECT `total_pow` FROM `stats` ORDER BY `time` DESC LIMIT 1")
+    db.execute("SELECT `total_pow` FROM `%s` ORDER BY `time` DESC LIMIT 1" % config.db['table_solar'])
     prev_pow = db.fetchone()['total_pow']
-    db.execute("INSERT INTO `stats`(`time`, `flags`, `pv_volt`, `pv_amp`, `grid_freq`, `grid_volt`, `grid_pow`, `total_pow`, `temp`, `optime`, `hasdata`) VALUES "
-               "(NULL, '0', '0', '0', '0', '0', '0', '%d', '0', '0', '0')" % prev_pow)
+    db.execute("INSERT INTO `%s`(`time`, `flags`, `pv_volt`, `pv_amp`, `grid_freq`, `grid_volt`, `grid_pow`, `total_pow`, `temp`, `optime`, `hasdata`) VALUES "
+               "(NULL, '0', '0', '0', '0', '0', '0', '%d', '0', '0', '0')" % (config.db['table_solar'], prev_pow))
 
