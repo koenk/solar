@@ -101,6 +101,10 @@ def parsestream(data):
                     continue
                 
                 payload = msg[9:9+(6*frames)]
+                if len(payload) != 6*frames:
+                    print "!!PAYLOAD COUNT MISMATCH!!"
+                    continue
+                
                 ret = parsepayload(payload)
                 
                 if ret:
