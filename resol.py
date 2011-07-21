@@ -219,8 +219,8 @@ def saveinDB(data):
     db = DB(config.db['host'], config.db['database'], config.db['user'], config.db['password'])
     data['table'] = config.db['table_resol']
     
-    db.execute("INSERT INTO `%(table)s`(`time`, `t1`, `t2`, `p1`, `relais`, `flags`, `errors`, `rt1`) VALUES "
-               "(NULL, '%(temp1)d', '%(temp2)d', '%(pump1)d', '%(relais)d', '%(flags)d', '%(errors)d', '%(r1time)d')" % data)
+    db.execute("INSERT INTO `%(table)s`(`time`, `t1`, `t2`, `t3`, `p1`, `relais`, `flags`, `errors`, `rt1`) VALUES "
+               "(NULL, '%(temp1)d', '%(temp2)d', '%(temp3)d', '%(pump1)d', '%(relais)d', '%(flags)d', '%(errors)d', '%(r1time)d')" % data)
                
 
 

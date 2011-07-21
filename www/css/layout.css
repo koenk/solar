@@ -10,8 +10,9 @@ html, body {
 body {
 	background-color: #ccc;
 	color: black;
-	font-family: verdana;
+	font-family: Arial, Helvetica, sans-serif;
 	font-size: 15px;
+    overflow-y: scroll;
 }
 
 td {
@@ -30,11 +31,7 @@ ul {
 	width: 800px;
 	background-color: white;
 	margin: 0 auto;
-	padding-bottom: 5px;
-	/*border: 1px solid #999;*/
-/*		-moz-box-shadow: 0 0 5px #999;
-		-webkit-box-shadow: 0 0 5px #999;*/
-        
+	padding-bottom: 5px;        
 	-moz-border-radius: 4px;
 	-webkit-border-radius: 4px;
 	border-radius: 4px;
@@ -46,6 +43,11 @@ ul {
 	width: 800px;
 	padding-top: 10px;
 	text-align: center;
+}
+
+#header h1 {
+    font-family: Verdana;
+    font-size: 2.1em;
 }
 
 #notify {
@@ -81,21 +83,52 @@ ul {
 }
 
 #tab_t_current {
-	padding: 10px 25px 15px;
+	/*padding: 10px 25px 15px;*/
 }
 
-#week_year_nav, #month_year_nav {
+#tab_t_current #cur_intro {
+    width: 800px;
+    text-align: center;
+    font-size: 20px;
+    font-weight: bold;
+    margin-top: 4px;
+}
+
+#tab_t_current div {
+    width: 399px;
+    float: left;
+}
+
+#tab_t_current div table {
+    width: 399px;
+}
+
+#tab_t_current .seperator {
+    float: left;
+    width: 1px;
+    background-color: #7F7F7F;
+    height: 200px;
+    margin-top: 15px;
+}
+
+#tab_t_current .add_today {
+    padding-left: 5px;
+    font-size: 13px;
+    color: #3B7F2B;
+}
+
+.period_nav {
     width: 250px;
     margin: 0 auto;
 }
 
-#week_year_nav td, #month_year_nav td {
+.period_nav td {
     text-align: center;
     width: 70px;
     padding: 0;
     font-size: 22px;
 }
 
-#week_year_nav td a, #month_year_nav td a {
+.period_nav td a {
     text-decoration: none;
 }
