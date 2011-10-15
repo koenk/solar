@@ -64,6 +64,10 @@ ul {
 	width: 788px;
 }
 
+#intro a {
+    color: #333;
+}
+
 #footer {
     font-size: 10px;
     color: #666;

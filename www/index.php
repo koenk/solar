@@ -224,11 +224,15 @@ if (!$resol_current_data) die("No data!");
     
     <link type="text/css" href="css/smoothness/jquery-ui-1.8.7.custom.css" rel="stylesheet" />    
     <link type="text/css" href="css/layout.css" rel="stylesheet"/> 
+    <link type="text/css" href="css/colorbox.css" rel="stylesheet"/>
+
     
     <script src="js/jquery-1.4.4.min.js" type="text/javascript"></script>
     <script src="js/jquery-ui-1.8.7.custom.min.js" type="text/javascript"></script>
     <script src="js/highcharts.js" type="text/javascript"></script>
     <script src="js/solargraphs.js" type="text/javascript"></script>
+    <script src="js/jquery.colorbox-min.js" type="text/javascript"></script>
+    <script src="js/imagepopup.js" type="text/javascript"></script>
     <script type="text/javascript">
         // PHP inserts data here
         var lyear = <?php echo $yearrange->lyear; ?>;
@@ -558,7 +562,7 @@ if (!$resol_current_data) die("No data!");
                             resol_chart.series[2].options.pointStart = start;
                             resol_chart.series[2].setData(data.t2); // t2
                             resol_chart.series[3].options.pointStart = start;
-                            resol_chart.series[3].setData(data.t3); // t2
+                            resol_chart.series[3].setData(data.t3); // t3
                             
                             // Update current data table
                             $("#ct_resol_time").html(data.cur_time);
@@ -596,6 +600,10 @@ if (!$resol_current_data) die("No data!");
         
         <div id="intro">
             <p>Hieronder enkele grafieken van de opbrengsten van de Soladin 600 met 3 panelen met een piekvermogen van 615 Wp. Ook staan hier de temperaturen van de zonneboiler.</p>
+            <p>Foto's:
+                <a href="solar_old.png" title="Zonnepanelen (oud)" rel="imgs">Zonnepanelen (oud)</a>
+                <a href="solar_new.png" title="Zonnepanelen (nieuw)" rel="imgs">Zonnepanelen (nieuw)</a>
+                <a href="resol.png" title="Zonneboiler" rel="imgs">Zonneboiler</a>
         </div>
         
         <!-- jQuery ui styles this to clickable tabs -->
