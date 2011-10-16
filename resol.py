@@ -196,6 +196,12 @@ def parsepayload(payload):
     for i, rng in payloadmap.items():
         vals[i] = gb(data, rng[0], rng[1]+1)
         
+        # Temperatures can be negative (using two's complement)
+        if i.startswith('temp'):
+            bits = (rng[1] - rng[0] + 1) * 8 
+            if vals[i] >= 1 << (bits - 1):
+                vals[i] -= 1 << bits
+        
     # Temp 3 correction
     vals['temp3'] -= 60;
 
