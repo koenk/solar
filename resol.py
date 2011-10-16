@@ -15,6 +15,7 @@
 #
 
 import socket
+import time
 
 # Our own config (vbus lan + database settings)
 try: import config
@@ -195,6 +196,9 @@ def parsepayload(payload):
     for i, rng in payloadmap.items():
         vals[i] = gb(data, rng[0], rng[1]+1)
         
+    # Temp 3 correction
+    vals['temp3'] -= 60;
+
     for i,j in vals.items():
         print "%s\t%s" % (i,j)
         
@@ -224,6 +228,8 @@ def saveinDB(data):
                
 
 
+print " -- Starting execution at " + time.ctime() + " -- "
+               
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 print "Connecting..."
@@ -240,5 +246,5 @@ except: pass
 sock.close()
 sock = None
 print "Dead :-("
-    
+print " -- Finished execution at " + time.ctime() + " -- "    
 
