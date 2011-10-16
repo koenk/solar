@@ -301,6 +301,11 @@ $(document).ready(function() {
     // -- RESOL
     // -----------------------------------
     
+    mintemp1 = Math.min.apply(Math, resol_t1_data);
+    mintemp2 = Math.min.apply(Math, resol_t2_data);
+    mintemp3 = Math.min.apply(Math, resol_t3_data);
+    mintemp = Math.min(mintemp1, mintemp2, mintemp3, 0.0);
+    
     resol_chart = new Highcharts.Chart({
 		credits: {enabled: false},
 		chart: {
@@ -323,7 +328,7 @@ $(document).ready(function() {
 			title: {
 				text: 'Temp. °C'
 			},
-			min: 0.0,
+			min: mintemp,
 			startOnTick: false,
 			showFirstLabel: false,
             labels: {

@@ -373,10 +373,10 @@ if (!$resol_current_data) die("No data!");
         </div> 
         
         <div id="intro">
-            <p>Hieronder enkele grafieken van de opbrengsten van de Soladin 600 met 3 panelen met een piekvermogen van 615 Wp. Ook staan hier de temperaturen van de zonneboiler.</p>
+            <p>Hieronder enkele grafieken van de opbrengsten van twee zonnecel installaties met beiden een Soladin 600 met drie panelen. De eerst set is 24-12-2010 ge&iuml;nstalleerd en heeft een piekvermogen van 615Wp. De tweede set is 23-09-2011 ge&iuml;nstalleerd met een piek van 675 Wp. Ook staan hier de temperaturen van de zonneboiler (twee panelen + Resol BS).</p>
             <p>Foto's:
-                <a href="solar_old.png" title="Zonnepanelen (oud)" rel="imgs">Zonnepanelen (oud)</a>
-                <a href="solar_new.png" title="Zonnepanelen (nieuw)" rel="imgs">Zonnepanelen (nieuw)</a>
+                <a href="solar_old.png" title="Zonnepanelen 24-12-2010 (oud)" rel="imgs">Zonnepanelen (oud)</a>
+                <a href="solar_new.png" title="Zonnepanelen 23-09-2011 (nieuw)" rel="imgs">Zonnepanelen (nieuw)</a>
                 <a href="resol.png" title="Zonneboiler" rel="imgs">Zonneboiler</a>
         </div>
         
