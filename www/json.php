@@ -11,19 +11,19 @@ mysql_select_db($db_database) or die("{\"error\": \"Could not find database!\"}"
 $action = isset($_GET['action']) ?  $_GET['action'] : 'stats';
 
 if ($action == 'stats'):
-    $res = mysql_query("SELECT * FROM `stats` ORDER BY `time` DESC LIMIT 1");
+    $res = mysql_query("SELECT * FROM `$db_table_solar` ORDER BY `time` DESC LIMIT 1");
     if (!$res) die("{\"error\": \"Invalid query: " . mysql_error() . "\"}");
     $data = mysql_fetch_object($res);
     if (!$data) die("{\"error\": \"No data!\"}");
 
     // Peak power of today
-    $res = mysql_query("SELECT `grid_pow` FROM `stats` WHERE DATE(`time`) = CURDATE() ORDER BY `grid_pow` DESC LIMIT 1");
+    $res = mysql_query("SELECT `grid_pow` FROM `$db_table_solar` WHERE DATE(`time`) = CURDATE() ORDER BY `grid_pow` DESC LIMIT 1");
     if (!$res) die("{\"error\": \"Invalid query: " . mysql_error() . "\"}");
     $peak_pow = mysql_fetch_object($res)->grid_pow;
     if (!is_numeric($peak_pow)) die("{\"error\": \"No data!\"}");
 
     // Ammount of stuff we collected today
-    $res = mysql_query("SELECT `total_pow` FROM `stats` WHERE DATE(`time`)=CURDATE() AND HOUR(`time`)=0 AND MINUTE(`time`) < 5");
+    $res = mysql_query("SELECT `total_pow` FROM `$db_table_solar` WHERE DATE(`time`)=CURDATE() AND HOUR(`time`)=0 AND MINUTE(`time`) < 5");
     if (!$res) die("{\"error\": \"Invalid query: " . mysql_error() . "\"}");
     $start_pow = mysql_fetch_object($res)->total_pow;
     if (!$start_pow) die("{\"error\": \"No data!\"}");
@@ -36,15 +36,15 @@ if ($action == 'stats'):
     FROM (SELECT 1
                     AS `temp`,
                  IF(WEEKDAY(`time`) >= 5, 
-                        0.1973,
+                        $power_cost_low,
                         IF((SELECT COUNT(`day`) AS `num`
-                            FROM `holidays`
+                            FROM `$db_table_holidays`
                             WHERE `day`=DATE(`time`)) > 0,
-                                0.1973,
-                                0.2243)
+                                $power_cost_low,
+                                $power_cost_normal)
                         ) * ((MAX(total_pow) - MIN(total_pow)) / 100.0)
                     AS `pow`
-          FROM `stats`
+          FROM `$db_table_solar`
           GROUP BY DATE(`time`)) 
             AS `t`
     GROUP BY `temp`");
@@ -54,10 +54,10 @@ if ($action == 'stats'):
     $today_mon_res = mysql_query("
     SELECT 
        IF(WEEKDAY(CURDATE()) >= 5,
-        0.1973,
-        IF((SELECT COUNT(`day`) AS `num` FROM `holidays` WHERE `day`=CURDATE()) > 0,
-         0.1973,
-         0.2243))
+        $power_cost_low,
+        IF((SELECT COUNT(`day`) AS `num` FROM `$db_table_holidays` WHERE `day`=CURDATE()) > 0,
+         $power_cost_low,
+         $power_cost_normal))
     AS `mon`");
     $money_today = $pow_today * mysql_fetch_object($today_mon_res)->mon;
     
@@ -89,7 +89,7 @@ elseif ($action == 'day'):
     "SELECT DAYOFMONTH(`time`) AS `day`,
             MAX(`total_pow`) - MIN(`total_pow`) AS `pow`,
             MAX(`grid_pow`) as `peak_pow`
-    FROM `stats` 
+    FROM `$db_table_solar` 
     WHERE YEAR(`time`) = $year AND
           MONTH(`time`) = $month
     GROUP BY `day`
@@ -134,7 +134,7 @@ elseif ($action == 'week'):
     $res = mysql_query(
     "SELECT WEEK(`time`, 1) AS `week`,
             MAX(`total_pow`) - MIN(`total_pow`) AS `pow`
-    FROM  `stats` 
+    FROM  `$db_table_solar` 
     WHERE YEAR(`time`) = $year
     GROUP BY WEEK(`time`, 1) 
     ORDER BY `week` ASC");
@@ -174,7 +174,7 @@ elseif ($action == 'month'):
     $res = mysql_query(
     "SELECT MONTH(`time`) - 1 AS `month`,
             MAX(`total_pow`) - MIN(`total_pow`) AS `pow`
-    FROM  `stats` 
+    FROM  `$db_table_solar` 
     WHERE YEAR(`time`) = $year
     GROUP BY month(`time`) 
     ORDER BY `month` ASC");
@@ -211,7 +211,7 @@ elseif ($action == 'month'):
 elseif ($action == 'resol'):
     $res = mysql_query(
     "SELECT `time`, `t1`, `t2`, `t3`, `p1`
-    FROM `resol`
+    FROM `$db_table_resol`
     WHERE DATEDIFF(CURDATE(), `time`) < 2
     ORDER BY `time`");
     if (!$res) die('{"error": "'.mysql_error().'"}');
@@ -240,7 +240,7 @@ elseif ($action == 'resol'):
     
     $res = mysql_query("
     SELECT `time`, `t1`, `t2`, `t3`, `p1`
-    FROM `resol`
+    FROM `$db_table_resol`
     ORDER BY `time` DESC
     LIMIT 1");
     if (!$res) die('{"error": "'.mysql_error().'"}');

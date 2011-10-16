@@ -14,7 +14,7 @@ mysql_select_db($db_database) or die("Could not find database!");
 // All data for first graph
 $res = mysql_query("
 SELECT *
-FROM `stats`
+FROM `$db_table_solar`
 WHERE DATEDIFF(CURDATE(), `time`) < 2
 ORDER BY `time`");
 if (!$res) die('Invalid query: ' . mysql_error());
@@ -36,7 +36,7 @@ $powstart = $row->hasdata ? $row->grid_pow : "-30";
 
 $current_res = mysql_query("
 SELECT *
-FROM `stats`
+FROM `$db_table_solar`
 ORDER BY `time` DESC
 LIMIT 1");
 if (!$current_res) die('Invalid query: ' . mysql_error());
@@ -46,7 +46,7 @@ if (!$row) die("No data!");
 // Peak power of today
 $peak_pow_res = mysql_query("
 SELECT `grid_pow`
-FROM `stats`
+FROM `$db_table_solar`
 WHERE DATE(`time`) = CURDATE()
 ORDER BY `grid_pow` DESC
 LIMIT 1");
@@ -57,7 +57,7 @@ if (!is_numeric($peak_pow)) die("{\"error\": \"No data! 1\"}");
 // Ammount of stuff we collected today
 $today_pow_res = mysql_query("
 SELECT `total_pow`
-FROM `stats`
+FROM `$db_table_solar`
 WHERE DATE(`time`) = CURDATE() AND
       HOUR(`time`) = 0 AND
       MINUTE(`time`) < 5");
@@ -74,7 +74,7 @@ SELECT YEAR(MIN(`time`)) AS `lyear`,
        YEAR(MAX(`time`)) AS `hyear`,
        MONTH(MIN(`time`)) AS `lmonth`,
        MONTH(MAX(`time`)) AS `hmonth`
-FROM `stats`");
+FROM `$db_table_solar`");
 $yearrange = mysql_fetch_object($yearrange_res);
 
 // Stuff for day mode
@@ -84,7 +84,7 @@ $day_res = mysql_query(
 "SELECT DAYOFMONTH(`time`) AS `day`,
         MAX(`total_pow`) - MIN(`total_pow`) AS `pow`,
         MAX(`grid_pow`) as `peak_pow`
-FROM `stats` 
+FROM `$db_table_solar` 
 WHERE YEAR(`time`) = $day_year AND
       MONTH(`time`) = $day_month
 GROUP BY `day`
@@ -120,7 +120,7 @@ $week_year = $yearrange->hyear;
 $week_res = mysql_query(
 "SELECT WEEK(`time`, 1) AS `week`,
         MAX(`total_pow`) - MIN(`total_pow`) AS `pow`
-FROM  `stats` 
+FROM  `$db_table_solar` 
 WHERE YEAR(`time`) = $week_year
 GROUP BY WEEK(`time`, 1) 
 ORDER BY `week` ASC");
@@ -130,7 +130,7 @@ $month_year = $yearrange->hyear;
 $month_res = mysql_query(
 "SELECT MONTH(`time`) - 1 AS `month`,
         MAX(`total_pow`) - MIN(`total_pow`) AS `pow`
-FROM  `stats` 
+FROM  `$db_table_solar` 
 WHERE YEAR(`time`) = $month_year
 GROUP BY month(`time`) 
 ORDER BY `month` ASC");
@@ -138,7 +138,7 @@ ORDER BY `month` ASC");
 // Last flags table
 $flags_res = mysql_query("
 SELECT `time`, `flags`
-FROM `stats`
+FROM `$db_table_solar`
 WHERE `flags` > 0
 ORDER BY `time` DESC
 LIMIT 5");
@@ -149,15 +149,15 @@ SELECT SUM(`t`.`pow`) AS `money`
 FROM (SELECT 1
                 AS `temp`,
              IF(WEEKDAY(`time`) >= 5, 
-                    0.1973,
+                    $power_cost_low,
                     IF((SELECT COUNT(`day`) AS `num`
-                        FROM `holidays`
+                        FROM `$db_table_holidays`
                         WHERE `day`=DATE(`time`)) > 0,
-                            0.1973,
-                            0.2243)
+                            $power_cost_low,
+                            $power_cost_normal)
                     ) * ((MAX(total_pow) - MIN(total_pow)) / 100.0)
                 AS `pow`
-      FROM `stats`
+      FROM `$db_table_solar`
       GROUP BY DATE(`time`)) 
         AS `t`
 GROUP BY `temp`");
@@ -167,17 +167,17 @@ $money = mysql_fetch_object($money_res)->money;
 $today_mon_res = mysql_query("
 SELECT 
    IF(WEEKDAY(CURDATE()) >= 5,
-    0.1973,
-    IF((SELECT COUNT(`day`) AS `num` FROM `holidays` WHERE `day`=CURDATE()) > 0,
-     0.1973,
-     0.2243))
+    $power_cost_low,
+    IF((SELECT COUNT(`day`) AS `num` FROM `$db_table_holidays` WHERE `day`=CURDATE()) > 0,
+     $power_cost_low,
+     $power_cost_normal))
 AS `mon`");
 $money_today = $today_pow * mysql_fetch_object($today_mon_res)->mon;
 
 // Resol stats (3 temps, 1 pump)
 $resol_res = mysql_query("
 SELECT `time`, `t1`, `t2`, `t3`, `p1`
-FROM `resol`
+FROM `$db_table_resol`
 WHERE DATEDIFF(CURDATE(), `time`) < 2
 ORDER BY `time`");
 if (!$resol_res) die('Invalid query: ' . mysql_error());
@@ -207,7 +207,7 @@ while ($row = mysql_fetch_object($resol_res)) {
 // lazy
 $resol_cur_res = mysql_query("
 SELECT `time`, `t1`, `t2`, `t3`, `p1`
-FROM `resol`
+FROM `$db_table_resol`
 ORDER BY `time` DESC
 LIMIT 1");
 if (!$resol_cur_res) die('Invalid query: ' . mysql_error());
@@ -230,9 +230,13 @@ if (!$resol_current_data) die("No data!");
     <script src="js/jquery-1.4.4.min.js" type="text/javascript"></script>
     <script src="js/jquery-ui-1.8.7.custom.min.js" type="text/javascript"></script>
     <script src="js/highcharts.js" type="text/javascript"></script>
-    <script src="js/solargraphs.js" type="text/javascript"></script>
     <script src="js/jquery.colorbox-min.js" type="text/javascript"></script>
+    
+    <script src="js/solargraphs.js" type="text/javascript"></script>
     <script src="js/imagepopup.js" type="text/javascript"></script>
+    <script src="js/navbuttons.js" type="text/javascript"></script>
+    <script src="js/refreshdata.js" type="text/javascript"></script>
+    
     <script type="text/javascript">
         // PHP inserts data here
         var lyear = <?php echo $yearrange->lyear; ?>;
@@ -338,241 +342,11 @@ if (!$resol_current_data) die("No data!");
                                 ?>
                             ];
         
-        function update_nav_buttons() {
-            if (day_cur_year == lyear && day_cur_month == lmonth)
-                $("#day_month_nav_prev").hide();
-            else
-                $("#day_month_nav_prev").show();
-                
-            if (day_cur_year == hyear && day_cur_month == hmonth)
-                $("#day_month_nav_next").hide();
-            else
-                $("#day_month_nav_next").show();
-                
-            if (day_cur_year == lyear)
-                $("#day_year_nav_prev").hide();
-            else
-                $("#day_year_nav_prev").show();
-                
-            if (day_cur_year == hyear)
-                $("#day_year_nav_next").hide();
-            else
-                $("#day_year_nav_next").show();
         
-            if (week_cur_year == lyear)
-                $("#week_year_nav_prev").hide();
-            else
-                $("#week_year_nav_prev").show();
-                
-            if (week_cur_year == hyear)
-                $("#week_year_nav_next").hide();
-            else
-                $("#week_year_nav_next").show();
-                
-            if (month_cur_year == lyear)
-                $("#month_year_nav_prev").hide();
-            else
-                $("#month_year_nav_prev").show();
-                
-            if (month_cur_year == hyear)
-                $("#month_year_nav_next").hide();
-            else
-                $("#month_year_nav_next").show();
-                
-            $("#day_month_nav_cur").html(month_map[day_cur_month]);
-            $("#day_year_nav_cur").html(day_cur_year);
-            $("#week_year_nav_cur").html(week_cur_year);
-            $("#month_year_nav_cur").html(month_cur_year);
-        }
         
-        // This in seperate file?
+        // Create the JS tabs
         $(document).ready(function() {
             $("#tabs").tabs();
-            
-            update_nav_buttons();
-            
-            function day_nav_getjson(data) {
-                day_total_start = Date.UTC(data.year, data.month - 1, 1);
-                day_chart.series[0].options.pointStart = day_total_start;
-                day_chart.series[0].setData(data.peakpow);
-                day_chart.series[1].options.pointStart = day_total_start;
-                day_chart.series[1].setData(data.pow);
-            }
-            
-            $("#day_month_nav_prev").click(function() {
-                day_cur_month -= 1;
-                
-                if (day_cur_month < 0) {
-                    day_cur_month = 11;
-                    day_cur_year -= 1;
-                }
-                
-                update_nav_buttons();
-                
-                $.getJSON("json.php", {'action': 'day', 'year': day_cur_year, 'month': day_cur_month + 1}, day_nav_getjson);
-                
-                return false;
-            });
-            
-            $("#day_month_nav_next").click(function() {
-                day_cur_month += 1;
-                
-                if (day_cur_month > 11) {
-                    day_cur_month = 0;
-                    day_cur_year += 1;
-                }
-                
-                day_total_start = Date.UTC(day_cur_year, day_cur_month, 1);
-                
-                update_nav_buttons();
-                
-                $.getJSON("json.php", {'action': 'day', 'year': day_cur_year, 'month': day_cur_month + 1}, day_nav_getjson);
-                
-                return false;
-            });
-            
-            $("#day_year_nav_prev").click(function() {
-                day_cur_year -= 1;
-                
-                if (day_cur_year == lyear && day_cur_month < lmonth)
-                    day_cur_month = lmonth;
-                
-                update_nav_buttons();
-                
-                $.getJSON("json.php", {'action': 'day', 'year': day_cur_year, 'month': day_cur_month + 1}, day_nav_getjson);
-                
-                return false;
-            });
-            
-            $("#day_year_nav_next").click(function() {
-                day_cur_year += 1;
-                
-                if (day_cur_year == hyear && day_cur_month > hmonth)
-                    day_cur_month = hmonth;
-                
-                update_nav_buttons();
-                
-                $.getJSON("json.php", {'action': 'day', 'year': day_cur_year, 'month': day_cur_month + 1}, day_nav_getjson);
-                
-                return false;
-            });
-            
-            $("#week_year_nav_prev").click(function() {
-                week_cur_year -= 1;
-                update_nav_buttons();
-                
-                $.getJSON("json.php", {'action': 'week', 'year': week_cur_year}, 
-                    function(data){
-                        week_chart.series[0].setData(data.data);
-                    }
-                );
-                
-                return false;
-            });
-            
-            $("#week_year_nav_next").click(function() {
-                week_cur_year += 1;
-                update_nav_buttons();
-                
-                $.getJSON("json.php", {'action': 'week', 'year': week_cur_year}, 
-                    function(data){
-                        week_chart.series[0].setData(data.data);
-                    }
-                );
-                
-                return false;
-            });
-            
-            $("#month_year_nav_prev").click(function() {
-                month_cur_year -= 1;
-                update_nav_buttons();
-                
-                $.getJSON("json.php", {'action': 'month', 'year': month_cur_year}, 
-                    function(data){
-                        month_chart.series[0].setData(data.data);
-                    }
-                );
-                
-                return false;
-            });
-            
-            $("#month_year_nav_next").click(function() {
-                month_cur_year += 1;
-                update_nav_buttons();
-                
-                $.getJSON("json.php", {'action': 'month', 'year': month_cur_year}, 
-                    function(data){
-                        month_chart.series[0].setData(data.data);
-                    }
-                );
-                
-                return false;
-            });
-            
-            setInterval(
-                function() { 
-                    // solar
-                    $.getJSON("json.php", {'action': 'stats'}, 
-                        function(data){
-                            $("#ct_time").html(data.time);
-                            $("#ct_pv_volt").html(data.pv_volt + " V");
-                            $("#ct_pv_amp").html(data.pv_amp + " A");
-                            $("#ct_grid_freq").html(data.grid_freq + " Hz");
-                            $("#ct_grid_volt").html(data.grid_volt + " V");
-                            $("#ct_grid_pow").html(data.grid_pow + " W");
-                            $("#ct_total_pow").html(data.total_pow + " kWh");
-                            $("#ct_temp").html(data.temp + " &deg;C");
-                            $("#ct_optime").html(data.optime);
-                            $("#ct_peak_pow").html(data.peak_pow + " W piek vandaag");
-                            $("#ct_today_pow").html(data.today_pow + " kWh vandaag");
-                            $("#ct_total_money").html("&euro;" + data.money);
-                            $("#ct_today_money").html("&euro;" + data.money_today.toFixed(2) + " vandaag");
-                            
-                            // Flags table thing
-                            if (data.flags != "")
-                                $("#flagstable th").parent().after($("<tr><td>" + data.time + "</td><td>" + data.flags + "</td></tr>"));
-                            
-                            var tdate = data.time.split(" ");
-                            var ttime = tdate[1].split(":");
-                            tdate = tdate[0].split("-");
-                            
-                            var tday = parseInt(tdate[2]);
-                            var tmonth = parseInt(tdate[1])-1;
-                            var tyear = parseInt(tdate[0]);
-                            var thour = parseInt(ttime[0]);
-                            var tmin = parseInt(ttime[1]);
-                            var tsec = parseInt(ttime[2]);
-                            var newcoords = [Date.UTC(tyear, tmonth, tday, thour, tmin, tsec),data.hasdata ? data.grid_pow : "-30"];
-                            var series = pow_chart.series[0].data;
-                            
-                            // See whether the data is already in the graph
-                            if (series[series.length-1].x != newcoords[0])
-                                pow_chart.series[0].addPoint(newcoords, true, true);
-                        }
-                    );
-                    
-                    // resol
-                    $.getJSON("json.php", {'action': 'resol'}, 
-                        function(data){                                
-                            start = Date.UTC(data.year, data.month-1, data.day, data.hour, data.min, data.sec);
-                            resol_chart.series[0].options.pointStart = start;
-                            resol_chart.series[0].setData(data.p1); // p1
-                            resol_chart.series[1].options.pointStart = start;
-                            resol_chart.series[1].setData(data.t1); // t1
-                            resol_chart.series[2].options.pointStart = start;
-                            resol_chart.series[2].setData(data.t2); // t2
-                            resol_chart.series[3].options.pointStart = start;
-                            resol_chart.series[3].setData(data.t3); // t3
-                            
-                            // Update current data table
-                            $("#ct_resol_time").html(data.cur_time);
-                            $("#ct_resol_t1").html(data.cur_t1 + " &deg;C");
-                            $("#ct_resol_t2").html(data.cur_t2 + " &deg;C");
-                            $("#ct_resol_t3").html(data.cur_t3 + " &deg;C");
-                            $("#ct_resol_p1").html(data.cur_p1 + "%");
-                        }
-                    );
-                }, 1000 * 60 * 5); // Every 5 minutes
         });
     </script>
 
