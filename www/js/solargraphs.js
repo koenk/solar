@@ -2,6 +2,55 @@ var highchartsOptions = Highcharts.getOptions();
 
 var pow_chart;
 $(document).ready(function() {
+    var pow_chart_series = [];
+    for (var i = 0; i < power_day_data.length; i++) {
+        pow_chart_series.push({
+            type: 'spline',
+            name: 'Vermogen ' + (i + 1),
+            pointInterval: 5 * 60 * 1000,
+            pointStart: power_day_start[i], // See the index for this var
+            data: power_day_data[i] // See the index for this var
+        });
+    }
+
+    var day_chart_series = [];
+    for (var i = 0; i < day_total_data.length; i++) {
+        day_chart_series.push({
+            type: 'line',
+            name: 'Piek vermogen ' + (i + 1),
+            pointInterval: 24 * 60 * 60 * 1000, // Day
+            pointStart: day_total_start,
+            yAxis: 1,
+            data: day_peak_data[i],
+            color: highchartsOptions.colors[1]
+        });
+        day_chart_series.push({
+            type: 'column',
+            name: 'Dag totaal ' + (i + 1),
+            pointInterval: 24 * 60 * 60 * 1000, // Day
+            pointStart: day_total_start, // See the index for this var
+            data: day_total_data[i], // See the index for this var
+            color: '#4572A7'
+        });
+    }
+    var week_chart_series = [];
+    for (var i = 0; i < week_total_data.length; i++) {
+        week_chart_series.push({
+            type: 'column',
+            name: 'Week totaal',
+            pointStart: 0,
+            data: week_total_data[i] // See the index for this var
+        });
+    }
+    var month_chart_series = [];
+    for (var i = 0; i < month_total_data.length; i++) {
+        month_chart_series.push({
+            type: 'column',
+            name: 'Maand totaal',
+            data: month_total_data[i] // See the index for this var
+        });
+    }
+
 	pow_chart = new Highcharts.Chart({
 		credits: {enabled: false},
 		chart: {
@@ -59,13 +108,7 @@ $(document).ready(function() {
 				}
 			}
 		}, 
-		series: [{
-			type: 'spline',
-			name: 'Vermogen',
-			pointInterval: 5 * 60 * 1000,
-			pointStart: power_day_start, // See the index for this var
-			data: power_day_data // See the index for this var
-			}]
+		series: pow_chart_series
 		}
     );
 		
@@ -169,24 +212,7 @@ $(document).ready(function() {
 				}
 			}
 		}, 
-		series: [
-			{
-				type: 'line',
-				name: 'Piek vermogen',
-				pointInterval: 24 * 60 * 60 * 1000, // Day
-				pointStart: day_total_start,
-				yAxis: 1,
-				data: day_peak_data,
-                color: highchartsOptions.colors[1]
-			},
-            {
-				type: 'column',
-				name: 'Dag totaal',
-				pointInterval: 24 * 60 * 60 * 1000, // Day
-				pointStart: day_total_start, // See the index for this var
-				data: day_total_data, // See the index for this var
-                color: '#4572A7'
-			}]
+		series: day_chart_series
 		}
     );
     
@@ -237,12 +263,7 @@ $(document).ready(function() {
 		legend: {
 			enabled: false
 		},
-		series: [{
-				type: 'column',
-				name: 'Week totaal',
-				pointStart: 0,
-				data: week_total_data // See the index for this var
-			}]
+		series: week_chart_series
 		}
     );
     
@@ -289,11 +310,7 @@ $(document).ready(function() {
 		legend: {
 			enabled: false
 		},
-		series: [{
-				type: 'column',
-				name: 'Maand totaal',
-				data: month_total_data // See the index for this var
-			}]
+		series: month_chart_series
 		}
     );
     

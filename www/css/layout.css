@@ -99,12 +99,21 @@ ul {
 }
 
 #tab_t_current div {
-    width: 399px;
     float: left;
 }
 
-#tab_t_current div table {
-    width: 399px;
+#tab_t_current #stats_solar {
+    width: 500px;
+}
+
+#tab_t_current #stats_resol {
+    width: 299px;
+}
+#tab_t_current #stats_solar table {
+    width: 500px;
+}
+#tab_t_current #stats_resol table {
+    width: 299px;
 }
 
 #tab_t_current .seperator {
@@ -115,7 +124,7 @@ ul {
     margin-top: 15px;
 }
 
-#tab_t_current .add_today {
+ .add_today {
     padding-left: 5px;
     font-size: 13px;
     color: #3B7F2B;

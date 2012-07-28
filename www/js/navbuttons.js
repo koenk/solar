@@ -65,10 +65,7 @@ $(function() {
         update_nav_buttons();
         
         $.getJSON("json.php", {'action': 'week', 'year': week_cur_year}, 
-            function(data){
-                week_chart.series[0].setData(data.data);
-            }
-        );
+            week_nav_getjson);
         
         return false;
     });
@@ -78,10 +75,7 @@ $(function() {
         update_nav_buttons();
         
         $.getJSON("json.php", {'action': 'week', 'year': week_cur_year}, 
-            function(data){
-                week_chart.series[0].setData(data.data);
-            }
-        );
+            week_nav_getjson);
         
         return false;
     });
@@ -91,10 +85,7 @@ $(function() {
         update_nav_buttons();
         
         $.getJSON("json.php", {'action': 'month', 'year': month_cur_year}, 
-            function(data){
-                month_chart.series[0].setData(data.data);
-            }
-        );
+            month_nav_getjson);
         
         return false;
     });
@@ -104,10 +95,7 @@ $(function() {
         update_nav_buttons();
         
         $.getJSON("json.php", {'action': 'month', 'year': month_cur_year}, 
-            function(data){
-                month_chart.series[0].setData(data.data);
-            }
-        );
+            month_nav_getjson);
         
         return false;
     });
@@ -116,10 +104,22 @@ $(function() {
             
 function day_nav_getjson(data) {
     day_total_start = Date.UTC(data.year, data.month - 1, 1);
-    day_chart.series[0].options.pointStart = day_total_start;
-    day_chart.series[0].setData(data.peakpow);
-    day_chart.series[1].options.pointStart = day_total_start;
-    day_chart.series[1].setData(data.pow);
+    for (var i = 0; i < data.pow.length; i++) {
+        day_chart.series[2 * i].options.pointStart = day_total_start;
+        day_chart.series[2 * i].setData(data.peakpow[i]);
+        day_chart.series[2 * i + 1].options.pointStart = day_total_start;
+        day_chart.series[2 * i + 1].setData(data.pow[i]);
+    }
+}
+
+function week_nav_getjson(data) {
+    for (var i = 0; i < data.data.length; i++)
+        week_chart.series[i].setData(data.data[i]);
+}
+
+function month_nav_getjson(data) {
+    for (var i = 0; i < data.data.length; i++)
+        month_chart.series[i].setData(data.data[i]);
 }
 
 function update_nav_buttons() {
