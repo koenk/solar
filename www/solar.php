@@ -1,6 +1,6 @@
 <?php
 
-// TODO: Make this monster modular for effeciency. (mainly for json.php)    
+// TODO: Make this monster modular for effeciency. (mainly for json.php)
 
 function get_solar_data() {
     if (!include("config.php"))
@@ -18,7 +18,7 @@ function get_solar_data() {
         ORDER BY `time`");
         if (!$data[$table]['today_res'])
             die('Invalid query: ' . mysql_error());
-        // This is fucked up... I need the first date/time for the graph... So we 
+        // This is fucked up... I need the first date/time for the graph... So we
         // fetch the first row here, and the rest of the rows are read and directly
         // printed where it is neceserry.
         $row = mysql_fetch_object($data[$table]['today_res']);
@@ -137,11 +137,10 @@ function get_solar_data() {
              `$db_table_prices` AS `p`
         WHERE
          DATE(`s`.`time`) = CURDATE() AND
-         DATE(`s`.`time`) >= `p`.`start` AND
-         DATE(`s`.`time`) <= `p`.`end`");
+         CURDATE() >= `p`.`start` AND
+         CURDATE() <= `p`.`end`");
 
-        $data[$table]['money_today'] =
-           $data[$table]['today_pow'] * mysql_fetch_object($tmon_res)->money;
+        $data[$table]['money_today'] = mysql_fetch_object($tmon_res)->money;
     }
 
     // Flags table
@@ -150,7 +149,7 @@ function get_solar_data() {
     foreach($db_tables_solar as $table) {
         if ($i++ > 0)
             $flags_query .= "UNION\n";
-        $flags_query .= 
+        $flags_query .=
             "(SELECT `time`, `flags`, '$i' AS `num` " .
             " FROM `$table` " .
             " WHERE `flags` > 0 " .
@@ -172,7 +171,7 @@ function get_solar_daymode($table, $month, $year) {
     "SELECT DAYOFMONTH(`time`) AS `day`,
             MAX(`total_pow`) - MIN(`total_pow`) AS `pow`,
             MAX(`grid_pow`) as `peak_pow`
-    FROM `$table` 
+    FROM `$table`
     WHERE YEAR(`time`) = $year AND
           MONTH(`time`) = $month
     GROUP BY `day`
@@ -212,9 +211,9 @@ function get_solar_weekmode($table, $year) {
     $res = mysql_query(
     "SELECT WEEK(`time`, 1) AS `week`,
             MAX(`total_pow`) - MIN(`total_pow`) AS `pow`
-    FROM  `$table` 
+    FROM  `$table`
     WHERE YEAR(`time`) = $year
-    GROUP BY WEEK(`time`, 1) 
+    GROUP BY WEEK(`time`, 1)
     ORDER BY `week` ASC");
 
     $ret = '';
@@ -228,12 +227,12 @@ function get_solar_weekmode($table, $year) {
                 $ret .= "[$c, 0], ";
                 ++$c;
             }
-        
+
         $p = $row->pow / 100.;
         $ret .= "[$c, $p]";
         ++$c;
     }
-    
+
     while ($c < 53) {
         if ($c > 0)
             $ret .= ", ";
@@ -248,9 +247,9 @@ function get_solar_monthmode($table, $year) {
     $res = mysql_query(
     "SELECT MONTH(`time`) - 1 AS `month`,
             MAX(`total_pow`) - MIN(`total_pow`) AS `pow`
-    FROM  `$table` 
+    FROM  `$table`
     WHERE YEAR(`time`) = $year
-    GROUP BY month(`time`) 
+    GROUP BY month(`time`)
     ORDER BY `month` ASC");
 
     $ret = '';
@@ -264,12 +263,12 @@ function get_solar_monthmode($table, $year) {
                 $ret .= "0, ";
                 ++$c;
             }
-        
+
         $p = $row->pow / 100.;
         $ret .= $p;
         ++$c;
     }
-    
+
     while ($c < 12) {
         if ($c > 0)
             $ret .= ", ";
