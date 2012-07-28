@@ -1,6 +1,6 @@
 #!/usr/bin/env python2
 
-# 
+#
 # Talk with the Soladin 600 over the serial port.
 #
 # Currently, it requests the current stats, and puts those in a MySQL database.
@@ -10,24 +10,26 @@
 #
 
 import sys, time
-
 from serial import Serial
 
 # Our own config (serial port + database settings)
-try: import config
-except: sys.exit("ERROR: config.py not found! Copy config.example.py for a template.")
+try:
+    import config
+except:
+    sys.exit("ERROR: config.py not found! Copy config.example.py for a " +
+        "template.")
 
 from database import DB
 
-exe="stats"
 
+# Commands that can be send to the Soladin
 commands = {'probe':            "00 00 00 00 C1 00 00 00 C1",
             'firmware':         "11 00 00 00 B4 00 00 00 C5",
             'stats':            "11 00 00 00 B6 00 00 00 C7",
             'max_power':        "11 00 00 00 B9 00 00 00 CA",
             'reset_max_power':  "11 00 00 00 97 01 00 00 A9",
             'history':          "11 00 00 00 9A 00 00 00 AB" } # byte 6 = day
-            
+
 # Length of answers of each command (inclusive last byte, checksum)
 com_length = {  'probe':            9,
                 'firmware':         31,
@@ -35,7 +37,8 @@ com_length = {  'probe':            9,
                 'max_power':        31,
                 'reset_max_power':  9,
                 'history':          9 }
-                
+
+# Maps the response of a command to a field.
 # NOT directly usable indices (last one has to be +1 then)
 com_map = { 'stats': {  'flags':        (7, 8),
                         'pv_volt':      (9, 10),
@@ -47,58 +50,80 @@ com_map = { 'stats': {  'flags':        (7, 8),
                         'temp':         (24, 24),
                         'optime':       (25, 29) }
           }
-        
+
 def printbytes(bytes):
-    """
-    Prints the given sequence of bytes as hexidecimal values, and the length of
-    the entire sequence.
-    """
+    """Prints the given sequence of bytes as hexidecimal values, and the length
+    of the entire sequence."""
+
     print "%d: " % len(bytes),
     print ' '.join([hex(ord(b)) for b in bytes])
-    
+
 def decode(bytes, command):
-    """
-    Reads all values from a sequence of bytes, using the map of a given command.
-    """
+    """Reads all values from a sequence of bytes, using the map of a given
+    command."""
+
     cmap = com_map[command]
     ret = {}
     for com, rng in cmap.items():
-        ret[com] = sum([ord(b)<<(8*i) for i,b in enumerate(bytes[rng[0]-1:rng[1]])])
-        
+        ret[com] = sum([ord(b)<<(8*i) for i,b in
+            enumerate(bytes[rng[0]-1:rng[1]])])
+
     return ret
 
-# Convert commands to real bytes                
-for com, bytes in commands.items():
-    commands[com] = ''.join([chr(int(b, 16)) for b in bytes.split(' ')])
+def get_stats(db_table, device, db):
+    """Pulls the current stats from a given device, and puts them in the given
+    table of the database."""
 
-# Connect to MySQL database
-db = DB(config.db['host'], config.db['database'], config.db['user'], config.db['password'])
+    print "[%s] %s(%s):" % (time.ctime(), db_table, device),
+    exe = "stats"
 
-# Connect to serial device
-ser = Serial(config.device, config.baudrate, timeout=config.timeout)
-# Write command
-ser.write(commands[exe])
-# And wait for answer
-read = ser.read(com_length[exe])
-ser.close()
+    # Connect to serial device
+    ser = Serial(device, config.baudrate, timeout=config.timeout)
+    # Write command
+    ser.write(commands[exe])
+    # And wait for answer
+    read = ser.read(com_length[exe])
+    ser.close()
 
-print "[%s]" % time.ctime(),
+    # If the length is 0, and the response was empty, then the soladin is (most
+    # likely) sleeping because there is no power (at night).
+    if len(read) > 0:
+        printbytes(read)
+        dec = decode(read, exe)
+        dec['table'] = db_table
 
-# If the length is 0, and the response was empty, then the soladin is (most
-# likely) sleeping because there is no power (at night).
-if len(read) > 0:
-    printbytes(read)
-    dec = decode(read, exe)
-    dec['table'] = config.db['table_solar']
-    
-    # Put it in our MySQL db
-    db.execute("INSERT INTO `%(table)s`(`time`, `flags`, `pv_volt`, `pv_amp`, `grid_freq`, `grid_volt`, `grid_pow`, `total_pow`, `temp`, `optime`) VALUES "
-               "(NULL, '%(flags)d', '%(pv_volt)d', '%(pv_amp)d', '%(grid_freq)d', '%(grid_volt)d', '%(grid_pow)d', '%(total_pow)d', '%(temp)d', '%(optime)d')" % dec)
-else:
-    print "Soladin not responding, sun down? :-("
-    # HACK: Just write null-data
-    db.execute("SELECT `total_pow` FROM `%s` ORDER BY `time` DESC LIMIT 1" % config.db['table_solar'])
-    prev_pow = db.fetchone()['total_pow']
-    db.execute("INSERT INTO `%s`(`time`, `flags`, `pv_volt`, `pv_amp`, `grid_freq`, `grid_volt`, `grid_pow`, `total_pow`, `temp`, `optime`, `hasdata`) VALUES "
-               "(NULL, '0', '0', '0', '0', '0', '0', '%d', '0', '0', '0')" % (config.db['table_solar'], prev_pow))
+        # Put it in our MySQL db
+        db.execute(("INSERT INTO `%(table)s` (`time`, `flags`, `pv_volt`, " +
+                    "`pv_amp`, `grid_freq`, `grid_volt`, `grid_pow`, " +
+                    "`total_pow`, `temp`, `optime`) VALUES " +
+                    "(NULL, '%(flags)d', '%(pv_volt)d', '%(pv_amp)d', " +
+                    "'%(grid_freq)d', '%(grid_volt)d', '%(grid_pow)d', " +
+                    "'%(total_pow)d', '%(temp)d', '%(optime)d')") % dec)
+    else:
+        print "Soladin not responding, sun down? :-("
+        # HACK: Just write null-data
+        db.execute("SELECT `total_pow` FROM `%s` ORDER BY `time` DESC LIMIT 1" %
+                db_table)
+        prev_pow = db.fetchone()['total_pow']
+        db.execute(("INSERT INTO `%s` (`time`, `flags`, `pv_volt`, `pv_amp`, " +
+                    "`grid_freq`, `grid_volt`, `grid_pow`, `total_pow`, " +
+                    "`temp`, `optime`, `hasdata`) VALUES (NULL, '0', '0', " +
+                    "'0', '0', '0', '0', '%d', '0', '0', '0')") % (db_table,
+                        prev_pow))
 
+
+def main():
+    # Convert commands to real bytes
+    for com, bytes in commands.items():
+        commands[com] = ''.join([chr(int(b, 16)) for b in bytes.split(' ')])
+
+    # Connect to MySQL database
+    db = DB(config.db['host'], config.db['database'], config.db['user'],
+            config.db['password'])
+
+    for table, device in zip(config.db['table_solar'], config.devices):
+        get_stats(table, device, db)
+
+
+if __name__ == '__main__':
+    main()
