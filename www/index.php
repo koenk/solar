@@ -30,13 +30,6 @@ foreach ($db_tables_solar as $table) {
     $data['week'] = solar\weekmode($table, $solar_daterange['hyear']);
     $data['month'] = solar\monthmode($table, $solar_daterange['hyear']);
 
-    list($data['last_status'], $data['today_peak'], $data['today_total']) =
-        solar\last_status($table);
-
-    $data['money_total'] =
-        solar\money_total($table, $db_table_prices, $db_table_holidays);
-    $data['money_today'] =
-        solar\money_today($table, $db_table_prices, $db_table_holidays);
     $solar[$table] = $data;
 }
 
@@ -293,75 +286,50 @@ if (!$resol_current_data) die("No data!");
                 <br class="clear" />
 
                 <div id="stats_solar">
-                    <table>
+                    <div id="solar_loading">
+                        <img src="loading.gif" alt="Laden..." /><br />
+                        Zonnecellendata laden...
+                    </div>
+                    <table style="display: none;">
                         <tr>
                             <th colspan="3">Zonnecellen</th>
                         </tr>
                         <tr>
                             <td>Datum/Tijd</td>
                             <?php foreach ($solar as $t => $data): ?>
-                            <td><span class="ct_time">
-                                <?php
-                                    echo $data['last_status']->time;
-                                ?>
-                            </span></td>
+                            <td><span class="ct_time"</span></td>
                             <?php endforeach; ?>
                         </tr>
                         <tr>
                             <td>PV voltage</td>
                             <?php foreach ($solar as $t => $data): ?>
-                            <td><span class="ct_pv_volt">
-                                <?php
-                                    echo $data['last_status']->pv_volt / 10.;
-                                 ?> V
-                            </span></td>
+                            <td><span class="ct_pv_volt"</span></td>
                             <?php endforeach; ?>
                         </tr>
                         <tr>
                             <td>PV amperage</td>
                             <?php foreach ($solar as $t => $data): ?>
-                            <td><span class="ct_pv_amp">
-                                <?php
-                                    echo $data['last_status']->pv_amp / 100.;
-                                ?> A
-                            </span></td>
+                            <td><span class="ct_pv_amp"</span></td>
                             <?php endforeach; ?>
                         </tr>
                         <tr>
                             <td>Grid frequentie</td>
                             <?php foreach ($solar as $t => $data): ?>
-                            <td><span class="ct_grid_freq">
-                                <?php
-                                    echo $data['last_status']->grid_freq
-                                        / 100.;
-                                ?> Hz
-                            </span></td>
+                            <td><span class="ct_grid_freq"</span></td>
                             <?php endforeach; ?>
                         </tr>
                         <tr>
                             <td>Grid voltage</td>
                             <?php foreach ($solar as $t => $data): ?>
-                            <td><span class="ct_grid_volt">
-                                <?php
-                                        echo $data['last_status']->grid_volt;
-                                ?> V
-                            </span></td>
+                            <td><span class="ct_grid_volt"</span></td>
                             <?php endforeach; ?>
                         </tr>
                         <tr>
                             <td>Grid vermogen</td>
                             <?php foreach ($solar as $t => $data): ?>
                             <td><span class="ct_pow">
-                                <span class="ct_grid_pow">
-                                <?php
-                                    echo $data['last_status']->grid_pow;
-                                ?> W
-                                </span>
-                                <span class="ct_peak_pow add_today">
-                                <?php
-                                    echo $data['today_peak'];
-                                ?> W piek vandaag
-                                </span>
+                                <span class="ct_grid_pow"></span>
+                                <span class="ct_peak_pow add_today"></span>
                             </span></td>
                             <?php endforeach; ?>
                         </tr>
@@ -369,17 +337,8 @@ if (!$resol_current_data) die("No data!");
                             <td>Totaal vermogen</td>
                             <?php foreach ($solar as $t => $data): ?>
                             <td><span class="ct_tpow">
-                                <span class="ct_total_pow">
-                                <?php
-                                    echo $data['last_status']->total_pow
-                                        / 100.;
-                                ?> kWh
-                                </span>
-                                <span class="ct_today_pow add_today">
-                                <?php
-                                    echo $data['today_total'];
-                                ?> kWh vandaag
-                                </span>
+                                <span class="ct_total_pow"></span>
+                                <span class="ct_today_pow add_today"></span>
                             </span></td>
                             <?php endforeach; ?>
                         </tr>
@@ -387,43 +346,21 @@ if (!$resol_current_data) die("No data!");
                             <td>Opbrengst euro's</td>
                             <?php foreach ($solar as $t => $data): ?>
                             <td>
-                                <span class="ct_total_money">
-                                    &euro;
-                                    <?php
-                                    echo sprintf('%.2f',
-                                        $data['money_total']);
-                                    ?>
-                                </span>
-                                <span class="ct_today_money add_today">
-                                    &euro;
-                                    <?php
-                                        echo sprintf('%.2f',
-                                            $data['money_today']);
-                                    ?>
-                                    vandaag
-                                </span>
+                                <span class="ct_total_money"></span>
+                                <span class="ct_today_money add_today"></span>
                             </td>
                             <?php endforeach; ?>
                         </tr>
                         <tr>
                             <td>Temperatuur</td>
                             <?php foreach ($solar as $t => $data): ?>
-                            <td><span class="ct_temp">
-                                <?php
-                                    echo $data['last_status']->temp;
-                                ?>
-                            </span></td>
+                            <td><span class="ct_temp"></span></td>
                             <?php endforeach; ?>
                         </tr>
                         <tr>
                             <td>Tijd actief</td>
                             <?php foreach ($solar as $t => $data): ?>
-                            <td><span class="ct_optime">
-                                <?php
-                                    echo mins2verbose(
-                                        $data['last_status']->optime);
-                                ?>
-                            </span></td>
+                            <td><span class="ct_optime"></span></td>
                             <?php endforeach; ?>
                         </tr>
                     </table>

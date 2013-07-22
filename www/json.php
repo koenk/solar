@@ -11,34 +11,42 @@ mysql_connect($db_host, $db_user, $db_password) or die("{\"error\": \"Could not 
 mysql_select_db($db_database) or die("{\"error\": \"Could not find database!\"}");
 
 
-
 $action = isset($_GET['action']) ?  $_GET['action'] : 'stats';
 
 if ($action == 'stats'):
-    $data = get_solar_data();
     $i = 0;
 ?>
     {"data": [
-    <?php foreach ($data as $table => $tdata): ?>
+    <?php foreach ($db_tables_solar as $table): ?>
+
+    <?php
+        list($current_status, $total_today, $peak_today) =
+            solar\last_status($table);
+        $money_total =
+            solar\money_total($table, $db_table_prices, $db_table_holidays);
+        $money_today =
+            solar\money_today($table, $db_table_prices, $db_table_holidays);
+    ?>
 
     <?php if ($i++ > 0) echo ","; ?>
 
-    {"time": 		"<?php echo $tdata['current_data']->time; ?>",
-     "flags": 		"<?php echo flags2html($tdata['current_data']->flags); ?>",
-     "pv_volt": 	<?php echo $tdata['current_data']->pv_volt / 10.; ?>,
-     "pv_amp": 		<?php echo $tdata['current_data']->pv_amp / 100.; ?>,
-     "grid_freq": 	<?php echo $tdata['current_data']->grid_freq / 100.; ?>,
-     "grid_volt": 	<?php echo $tdata['current_data']->grid_volt; ?>,
-     "grid_pow": 	<?php echo $tdata['current_data']->grid_pow; ?>,
-     "total_pow": 	<?php echo $tdata['current_data']->total_pow / 100.; ?>,
-     "temp": 		<?php echo $tdata['current_data']->temp; ?>,
-     "optime": 		"<?php echo mins2verbose($tdata['current_data']->optime); ?>",
-     "hasdata": 	<?php echo $tdata['current_data']->hasdata; ?>,
-     "peak_pow":    <?php echo $tdata['peak_pow']; ?>,
-     "today_pow":   <?php echo $tdata['today_pow']; ?>,
-     "money":       <?php echo sprintf('%.2f', 0.0/*$money*/); ?>,
-     "money_today": <?php echo sprintf('%.2f', 0.0/*$money_today*/); ?>}
-     
+
+    {"time": 		"<?php echo $current_status->time; ?>",
+     "flags": 		"<?php echo flags2html($current_status->flags); ?>",
+     "pv_volt": 	<?php echo $current_status->pv_volt / 10.; ?>,
+     "pv_amp": 		<?php echo $current_status->pv_amp / 100.; ?>,
+     "grid_freq": 	<?php echo $current_status->grid_freq / 100.; ?>,
+     "grid_volt": 	<?php echo $current_status->grid_volt; ?>,
+     "grid_pow": 	<?php echo $current_status->grid_pow; ?>,
+     "total_pow": 	<?php echo $current_status->total_pow / 100.; ?>,
+     "temp": 		<?php echo $current_status->temp; ?>,
+     "optime": 		"<?php echo mins2verbose($current_status->optime); ?>",
+     "hasdata": 	<?php echo $current_status->hasdata; ?>,
+     "peak_pow":    <?php echo $peak_today; ?>,
+     "today_pow":   <?php echo $total_today; ?>,
+     "money":       <?php echo sprintf('%.2f', $money_total); ?>,
+     "money_today": <?php echo sprintf('%.2f', $money_today); ?>}
+
     <?php endforeach; ?>
     ]}
     <?php
@@ -51,11 +59,11 @@ elseif ($action == 'day'):
     $pow = Array();
     $peak = Array();
     foreach ($db_tables_solar as $table) {
-        list($tpow, $tpeak) = get_solar_daymode($table, $month, $year);
+        list($tpow, $tpeak) = solar\daymode($table, $month, $year);
         $pow[] = '[' . implode(', ', $tpow) . ']';
         $peak[] = '[' . implode(', ', $tpeak) . ']';
     }
-    
+
     ?>
     {
      "year":    <?php echo $year; ?>,
@@ -63,15 +71,15 @@ elseif ($action == 'day'):
      "pow":     [<?php echo implode(', ', $pow); ?>],
      "peakpow": [<?php echo implode(', ', $peak); ?>]
     }
-    <?php    
+    <?php
 elseif ($action == 'week'):
     $year = isset($_GET['year']) ? $_GET['year'] : 2011;
     $year = mysql_real_escape_string($year);
 
     $data = Array();
     foreach ($db_tables_solar as $table)
-        $data[] = get_solar_weekmode($table, $year);
-    
+        $data[] = solar\weekmode($table, $year);
+
     ?>
     {"year":    <?php echo $year; ?>,
      "data":    [<?php echo implode(', ', $data); ?>]}
@@ -82,8 +90,8 @@ elseif ($action == 'month'):
 
     $data = Array();
     foreach ($db_tables_solar as $table)
-        $data[] = get_solar_monthmode($table, $year);
-    
+        $data[] = solar\monthmode($table, $year);
+
     ?>
     {"year":    <?php echo $year; ?>,
      "data":    [<?php echo implode(', ', $data); ?>]}
@@ -117,7 +125,7 @@ elseif ($action == 'resol'):
         $resol_t3_data[] = $row->t3/10.;
         $resol_p1_data[] = $row->p1;
     }
-    
+
     $res = mysql_query("
     SELECT `time`, `t1`, `t2`, `t3`, `p1`
     FROM `$db_table_resol`
@@ -126,7 +134,7 @@ elseif ($action == 'resol'):
     if (!$res) die('{"error": "'.mysql_error().'"}');
     $current_data = mysql_fetch_object($res);
     if (!$current_data) die("{\"error\": \"No data!\"}");
-    
+
     // Why are all those things casted to an int, you may ask? Otherwise, it may
     // send a value as '00' (two zeroes). The JSON thing of jQuery hates this,
     // and silently ignores the entire response.
@@ -134,7 +142,7 @@ elseif ($action == 'resol'):
     {"year":     <?php echo (int)$ts_year; ?>,
      "month":    <?php echo (int)$ts_month; ?>,
      "day":      <?php echo (int)$ts_day; ?>,
-     "hour":     <?php echo (int)$ts_hour; ?>, 
+     "hour":     <?php echo (int)$ts_hour; ?>,
      "min":      <?php echo (int)$ts_min; ?>,
      "sec":      <?php echo (int)$ts_sec; ?>,
      "p1":       [<?php echo implode(',', $resol_p1_data); ?>],
@@ -146,8 +154,8 @@ elseif ($action == 'resol'):
      "cur_t2":   <?php echo $current_data->t2 / 10.; ?>,
      "cur_t3":   <?php echo $current_data->t3 / 10.; ?>,
      "cur_p1":   <?php echo $current_data->p1; ?>}
-     
-    <?php    
+
+    <?php
 else:
     die("{\"error\": \"Unkown action '$action'\"}");
 endif;

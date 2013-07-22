@@ -31,11 +31,11 @@ ul {
 	width: 800px;
 	background-color: white;
 	margin: 0 auto;
-	padding-bottom: 5px;        
+	padding-bottom: 5px;
 	-moz-border-radius: 4px;
 	-webkit-border-radius: 4px;
 	border-radius: 4px;
-        
+
 }
 
 #header {
@@ -108,6 +108,12 @@ ul {
 
 #tab_t_current #stats_resol {
     width: 299px;
+}
+#tab_t_current #stats_solar #solar_loading {
+    width: 500px;
+    text-align: center;
+    margin-top: 60px;
+    font-size: 1.2em;
 }
 #tab_t_current #stats_solar table {
     width: 500px;
