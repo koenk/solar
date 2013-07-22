@@ -20,7 +20,7 @@ if ($action == 'stats'):
     <?php foreach ($db_tables_solar as $table): ?>
 
     <?php
-        list($current_status, $total_today, $peak_today) =
+        list($current_status, $peak_today, $total_today) =
             solar\last_status($table);
         $money_total =
             solar\money_total($table, $db_table_prices, $db_table_holidays);
