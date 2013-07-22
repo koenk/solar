@@ -1,172 +1,204 @@
 <?php
+namespace solar;
+/*
+ * Contains functions that fetch solar data from the database.
+ */
 
-// TODO: Make this monster modular for effeciency. (mainly for json.php)
+/*
+ * Returns data for the graph showing the last two days.
+ * Result is a dictionary with the following fields:
+ *  data: array with objects for each data point (raw database record)
+ */
+function current_graph($table) {
+    $res = mysql_query("
+    SELECT *
+    FROM `$table`
+    WHERE DATEDIFF(CURDATE(), `time`) < 2
+    ORDER BY `time`");
+    if (!$res)
+        die('Invalid query: ' . mysql_error());
+    if (mysql_num_rows($res) == 0)
+        die('No data for current-data graph.');
 
-function get_solar_data() {
-    if (!include("config.php"))
-        die("config.php not found! Copy config.example.php for a template.");
-    $data = Array();
+    $ret = Array();
+    while ($row = mysql_fetch_object($res))
+        $ret[] = $row;
 
-    foreach($db_tables_solar as $table) {
-        $data[$table] = Array();
+    return $ret;
+}
 
-        // All data for first graph (last 2 days)
-        $data[$table]['today_res'] = mysql_query("
-        SELECT *
-        FROM `$table`
-        WHERE DATEDIFF(CURDATE(), `time`) < 2
-        ORDER BY `time`");
-        if (!$data[$table]['today_res'])
-            die('Invalid query: ' . mysql_error());
-        // This is fucked up... I need the first date/time for the graph... So we
-        // fetch the first row here, and the rest of the rows are read and directly
-        // printed where it is neceserry.
-        $row = mysql_fetch_object($data[$table]['today_res']);
-        if (!$row) die("No data!");
-        $ts =       explode(" ", $row->time);
-        $ts_date =  explode("-", $ts[0]);
-        $ts_time =  explode(":", $ts[1]);
-        $data[$table]['ts'] = Array();
-        $data[$table]['ts']['year'] =  $ts_date[0];
-        $data[$table]['ts']['month'] = $ts_date[1]-1; // JS months are zero based
-        $data[$table]['ts']['day'] =   $ts_date[2];
-        $data[$table]['ts']['hour'] =  $ts_time[0];
-        $data[$table]['ts']['min'] =   $ts_time[1];
-        $data[$table]['ts']['sec'] =   $ts_time[2];
-        $data[$table]['ts']['pow'] = $row->hasdata ? $row->grid_pow : "-30";
+/*
+ * Returns the most recently gathered data and the peak and total power for
+ * today.
+ */
+function last_status($table) {
+    // Most recent status
+    $res = mysql_query("
+    SELECT *
+    FROM `$table`
+    ORDER BY `time` DESC
+    LIMIT 1");
+    if (!$res)
+        die('Invalid query: ' . mysql_error());
+    if (mysql_num_rows($res) == 0)
+        die('No data (today)');
+    $status = mysql_fetch_object($res);
 
-        $current_res = mysql_query("
-        SELECT *
-        FROM `$table`
-        ORDER BY `time` DESC
-        LIMIT 1");
-        if (!$current_res) die('Invalid query: ' . mysql_error());
-        $data[$table]['current_data'] = mysql_fetch_object($current_res);
-        if (!$data[$table]['current_data'])
-           die("No data! (current_data)");
+    // Peak power today
+    $res = mysql_query("
+    SELECT `grid_pow`
+    FROM `$table`
+    WHERE DATE(`time`) = CURDATE()
+    ORDER BY `grid_pow` DESC
+    LIMIT 1");
+    if (!$res)
+        die("Invalid query: " . mysql_error());
+    if (mysql_num_rows($res) == 0)
+        die('No data (today)');
+    $peak = mysql_fetch_object($res)->grid_pow;
 
-        // Peak power of today
-        $peak_pow_res = mysql_query("
-        SELECT `grid_pow`
-        FROM `$table`
-        WHERE DATE(`time`) = CURDATE()
-        ORDER BY `grid_pow` DESC
-        LIMIT 1");
-        if (!$peak_pow_res) die("Invalid query: " . mysql_error());
-        $data[$table]['peak_pow'] = mysql_fetch_object($peak_pow_res)->grid_pow;
-        if (!is_numeric($data[$table]['peak_pow']))
-           die("No data! (peak_pow)}");
+    // Power generated today
+    $res = mysql_query("
+    SELECT `total_pow`
+    FROM `$table`
+    WHERE DATE(`time`) = CURDATE() AND
+            HOUR(`time`) = 0 AND
+            MINUTE(`time`) < 5");
+    if (!$res)
+        die("Invalid query: " . mysql_error());
+    if (mysql_num_rows($res) == 0)
+        die('No data (today)');
 
-        // Ammount of stuff we collected today
-        $today_pow_res = mysql_query("
-        SELECT `total_pow`
-        FROM `$table`
-        WHERE DATE(`time`) = CURDATE() AND
-              HOUR(`time`) = 0 AND
-              MINUTE(`time`) < 5");
-        if (!$today_pow_res) die("Invalid query: " . mysql_error());
-        $start_pow = mysql_fetch_object($today_pow_res)->total_pow;
-        if (!$start_pow) die("No data! (start_pow)");
+    $start_pow = mysql_fetch_object($res)->total_pow;
+    $total = ($status->total_pow - $start_pow) / 100.;
 
-        $data[$table]['today_pow'] =
-            ($data[$table]['current_data']->total_pow - $start_pow) / 100.;
+    return Array($status, $peak, $total);
+}
 
+/*
+ * Returns the amount of money made in total.
+ */
+function money_total($table, $table_prices, $table_holidays) {
+    $res = mysql_query("
+    SELECT SUM(`t`.`day_money`) AS `money`
+    FROM (
+        SELECT
+            1 AS `group_by_all`,
+            (MAX(`s`.`total_pow`) - MIN(`s`.`total_pow`)) / 100. *
+            IF(WEEKDAY(`s`.`time`) >= 5,
+            `p`.`low`,
+            IF((SELECT COUNT(`day`) AS `num`
+                FROM `$table_holidays` AS `h`
+                WHERE `h`.`day` = DATE(`s`.`time`)) > 0,
+            `p`.`low`,
+            `p`.`normal`)
+            ) AS `day_money`
+        FROM `$table` AS `s`
+        LEFT JOIN `$table_prices` AS `p` ON
+            DATE(`s`.`time`) >= `p`.`start` AND
+            DATE(`s`.`time`) <= `p`.`end`
+        GROUP BY DATE(`s`.`time`)
+    ) AS `t`
+    GROUP BY `group_by_all`");
+    return mysql_fetch_object($res)->money;
+}
 
-        // Year range (+their min/max months)
-        $yearrange_res = mysql_query("
+/*
+ * Returns the amount of money made today.
+ */
+function money_today($table, $table_prices, $table_holidays) {
+    $res = mysql_query("
+    SELECT
+        (MAX(`s`.`total_pow`) - MIN(`s`.`total_pow`)) / 100. *
+        IF(WEEKDAY(`s`.`time`) >= 5,
+        `p`.`low`,
+        IF((SELECT COUNT(`day`) AS `num`
+            FROM `$table_holidays` AS `h`
+            WHERE `h`.`day` = DATE(`s`.`time`)) > 0,
+        `p`.`low`,
+        `p`.`normal`)
+        ) AS `money`
+    FROM `$table` AS `s`,
+            `$table_prices` AS `p`
+    WHERE
+        DATE(`s`.`time`) = CURDATE() AND
+        CURDATE() >= `p`.`start` AND
+        CURDATE() <= `p`.`end`");
+
+    return mysql_fetch_object($res)->money;
+}
+
+/*
+ * Returns all errors flags from the given tables combined.
+ * The result is an array with each entry a (time, flags) tuple.
+ */
+function flags($tables) {
+    // Construct a big query that combines the data from all tables.
+    $query = "";
+    $device_num = 1;
+    foreach($tables as $table) {
+        if ($query)
+            $query .= "UNION\n";
+        $query .=
+            "(SELECT `time`, `flags`, '$device_num' as `device`" .
+            " FROM `$table` " .
+            " WHERE `flags` > 0 " .
+            " ORDER BY `time` DESC " .
+            " LIMIT 5)\n";
+        $device_num++;
+    }
+    $query .= "ORDER BY `time` DESC\n LIMIT 10";
+
+    $res = mysql_query($query);
+    $ret = Array();
+    while ($row = mysql_fetch_object($res))
+        $ret[] = $row;
+
+    return $ret;
+}
+
+/*
+ * Returns the range of dates for which data exists.
+ * lyear:  year lower bound
+ * lmonth: lower bound month of year lyear
+ * hyear:  year upper bound
+ * hmonth: upper bound month of year hyear
+ */
+function daterange($tables) {
+    $daterange = Array('lyear' => 9999,
+                       'hyear' => 0,
+                       'lmonth' => 99,
+                       'hmonth' => 0);
+
+    foreach ($tables as $table) {
+        $res = mysql_query("
         SELECT YEAR(MIN(`time`)) AS `lyear`,
                YEAR(MAX(`time`)) AS `hyear`,
                MONTH(MIN(`time`)) AS `lmonth`,
                MONTH(MAX(`time`)) AS `hmonth`
         FROM `$table`");
-        $data[$table]['yearrange'] = mysql_fetch_object($yearrange_res);
+        $daterange_table = mysql_fetch_object($res);
+        if ($daterange['lyear'] > $daterange_table->lyear)
+            $daterange['lyear'] = $daterange_table->lyear;
 
-        // Stuff for day mode
-        $day_month = $data[$table]['yearrange']->hmonth;
-        $day_year = $data[$table]['yearrange']->hyear;
+        if ($daterange['hyear'] < $daterange_table->hyear)
+            $daterange['hyear'] = $daterange_table->hyear;
 
-        list($data[$table]['day_pow_data'], $data[$table]['day_peakpow_data']) =
-            get_solar_daymode($table, $day_month, $day_year);
+        if ($daterange['lmonth'] > $daterange_table->lmonth)
+            $daterange['lmonth'] = $daterange_table->lmonth;
 
-
-        // Stuff for week mode
-        $week_year = $data[$table]['yearrange']->hyear;
-        $data[$table]['week_data'] = get_solar_weekmode($table, $week_year);
-
-        // Stuff for month mode
-        $month_year = $data[$table]['yearrange']->hyear;
-        $data[$table]['month_data'] = get_solar_monthmode($table, $month_year);
-
-        // Moneyz
-        $money_res = mysql_query("
-        SELECT SUM(`t`.`day_money`) AS `money`
-        FROM (
-            SELECT
-             1 AS `group_by_all`,
-             (MAX(`s`.`total_pow`) - MIN(`s`.`total_pow`)) / 100. *
-             IF(WEEKDAY(`s`.`time`) >= 5,
-              `p`.`low`,
-              IF((SELECT COUNT(`day`) AS `num`
-                  FROM `$db_table_holidays` AS `h`
-                  WHERE `h`.`day` = DATE(`s`.`time`)) > 0,
-               `p`.`low`,
-               `p`.`normal`)
-              ) AS `day_money`
-            FROM `$table` AS `s`
-            LEFT JOIN `$db_table_prices` AS `p` ON
-             DATE(`s`.`time`) >= `p`.`start` AND
-             DATE(`s`.`time`) <= `p`.`end`
-            GROUP BY DATE(`s`.`time`)
-        ) AS `t`
-        GROUP BY `group_by_all`");
-        $data[$table]['money'] = mysql_fetch_object($money_res)->money;
-
-        // Todays euro per kWh
-        $tmon_res = mysql_query("
-        SELECT
-         (MAX(`s`.`total_pow`) - MIN(`s`.`total_pow`)) / 100. *
-         IF(WEEKDAY(`s`.`time`) >= 5,
-          `p`.`low`,
-          IF((SELECT COUNT(`day`) AS `num`
-              FROM `$db_table_holidays` AS `h`
-              WHERE `h`.`day` = DATE(`s`.`time`)) > 0,
-           `p`.`low`,
-           `p`.`normal`)
-          ) AS `money`
-        FROM `$table` AS `s`,
-             `$db_table_prices` AS `p`
-        WHERE
-         DATE(`s`.`time`) = CURDATE() AND
-         CURDATE() >= `p`.`start` AND
-         CURDATE() <= `p`.`end`");
-
-        $data[$table]['money_today'] = mysql_fetch_object($tmon_res)->money;
+        if ($daterange['hmonth'] < $daterange_table->hmonth)
+            $daterange['hmonth'] = $daterange_table->hmonth;
     }
-
-    // Flags table
-    $flags_query = "";
-    $i = 0;
-    foreach($db_tables_solar as $table) {
-        if ($i++ > 0)
-            $flags_query .= "UNION\n";
-        $flags_query .=
-            "(SELECT `time`, `flags`, '$i' AS `num` " .
-            " FROM `$table` " .
-            " WHERE `flags` > 0 " .
-            " ORDER BY `time` DESC " .
-            " LIMIT 5)\n";
-    }
-    $flags_query .= "ORDER BY `time` DESC\n LIMIT 10";
-
-    // Hacky stuff, we can't set this directly in the data array.
-    foreach ($db_tables_solar as $table)
-        $data[$table]['flags_res'] = mysql_query($flags_query);
-
-
-    return $data;
+    return $daterange;
 }
 
-function get_solar_daymode($table, $month, $year) {
+/*
+ * Returns the total and peak power per day for a single month in a year.
+ * The result is an array with two arrays. The first array contains the total
+ * power per day, the other the peak power.
+ */
+function daymode($table, $month, $year) {
     $res = mysql_query(
     "SELECT DAYOFMONTH(`time`) AS `day`,
             MAX(`total_pow`) - MIN(`total_pow`) AS `pow`,
@@ -207,7 +239,11 @@ function get_solar_daymode($table, $month, $year) {
     return Array($pow, $peak);
 }
 
-function get_solar_weekmode($table, $year) {
+/*
+ * Returns the total power per week for a given year.
+ * The result is a json string, containing an array of (week, power) tuples.
+ */
+function weekmode($table, $year) {
     $res = mysql_query(
     "SELECT WEEK(`time`, 1) AS `week`,
             MAX(`total_pow`) - MIN(`total_pow`) AS `pow`
@@ -243,7 +279,11 @@ function get_solar_weekmode($table, $year) {
     return '[' . $ret . ']';
 }
 
-function get_solar_monthmode($table, $year) {
+/*
+ * Returns the total power per month for a given year.
+ * The result is a json string, containing an array with the power per month.
+ */
+function monthmode($table, $year) {
     $res = mysql_query(
     "SELECT MONTH(`time`) - 1 AS `month`,
             MAX(`total_pow`) - MIN(`total_pow`) AS `pow`

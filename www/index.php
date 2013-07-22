@@ -15,7 +15,30 @@ mysql_connect($db_host, $db_user, $db_password) or
     die("Could not connect to database!");
 mysql_select_db($db_database) or die("Could not find database!");
 
-$data = get_solar_data($db_tables_solar);
+$solar_daterange = solar\daterange($db_tables_solar);
+$solar_flags = solar\flags($db_tables_solar);
+
+$solar = Array();
+foreach ($db_tables_solar as $table) {
+    $data = Array();
+
+    $data['current_graph'] = solar\current_graph($table);
+    list($data['day_total'], $data['day_peak']) =
+        solar\daymode($table,
+            $solar_daterange['hmonth'],
+            $solar_daterange['hyear']);
+    $data['week'] = solar\weekmode($table, $solar_daterange['hyear']);
+    $data['month'] = solar\monthmode($table, $solar_daterange['hyear']);
+
+    list($data['last_status'], $data['today_peak'], $data['today_total']) =
+        solar\last_status($table);
+
+    $data['money_total'] =
+        solar\money_total($table, $db_table_prices, $db_table_holidays);
+    $data['money_today'] =
+        solar\money_today($table, $db_table_prices, $db_table_holidays);
+    $solar[$table] = $data;
+}
 
 // Resol stats (3 temps, 1 pump)
 $resol_res = mysql_query("
@@ -23,24 +46,16 @@ SELECT `time`, `t1`, `t2`, `t3`, `p1`
 FROM `$db_table_resol`
 WHERE DATEDIFF(CURDATE(), `time`) < 2
 ORDER BY `time`");
-if (!$resol_res) die('Invalid query: ' . mysql_error());
-// Same as first one: we need starting data and stuff
-$row = mysql_fetch_object($resol_res);
-if (!$row) die("No data!");
-$resol_ts =       explode(" ", $row->time);
-$resol_ts_date =  explode("-", $resol_ts[0]);
-$resol_ts_time =  explode(":", $resol_ts[1]);
-$resol_ts_year =  $resol_ts_date[0];
-$resol_ts_month = $resol_ts_date[1]-1; // JS months are zero based
-$resol_ts_day =   $resol_ts_date[2];
-$resol_ts_hour =  $resol_ts_time[0];
-$resol_ts_min =   $resol_ts_time[1];
-$resol_ts_sec =   $resol_ts_time[2];
-$resol_t1_data = Array($row->t1/10.);
-$resol_t2_data = Array($row->t2/10.);
-$resol_t3_data = Array($row->t3/10.);
-$resol_p1_data = Array($row->p1);
+if (!$resol_res)
+    die('Invalid query: ' . mysql_error());
+$resol_start_date = NULL;
+$resol_t1_data = Array();
+$resol_t2_data = Array();
+$resol_t3_data = Array();
+$resol_p1_data = Array();
 while ($row = mysql_fetch_object($resol_res)) {
+    if ($resol_start_date === NULL)
+        $resol_start_date = datetime_mysql_to_js($row->time);
     $resol_t1_data[] = $row->t1/10.;
     $resol_t2_data[] = $row->t2/10.;
     $resol_t3_data[] = $row->t3/10.;
@@ -56,24 +71,6 @@ LIMIT 1");
 if (!$resol_cur_res) die('Invalid query: ' . mysql_error());
 $resol_current_data = mysql_fetch_object($resol_cur_res);
 if (!$resol_current_data) die("No data!");
-
-$yearrange = Array('lyear' => 9999,
-                   'hyear' => 0,
-                   'lmonth' => 99,
-                   'hmonth' => 0);
-foreach ($data as $table => $tdata) {
-    if ($yearrange['lyear'] > $tdata['yearrange']->lyear)
-        $yearrange['lyear'] = $tdata['yearrange']->lyear;
-
-    if ($yearrange['hyear'] < $tdata['yearrange']->hyear)
-        $yearrange['hyear'] = $tdata['yearrange']->hyear;
-
-    if ($yearrange['lmonth'] > $tdata['yearrange']->lmonth)
-        $yearrange['lmonth'] = $tdata['yearrange']->lmonth;
-
-    if ($yearrange['hmonth'] < $tdata['yearrange']->hmonth)
-        $yearrange['hmonth'] = $tdata['yearrange']->hmonth;
-}
 
 
 
@@ -103,10 +100,10 @@ foreach ($data as $table => $tdata) {
 
     <script type="text/javascript">
         // PHP inserts data here
-        var lyear = <?php echo $yearrange['lyear']; ?>;
-        var hyear = <?php echo $yearrange['hyear']; ?>;
-        var lmonth = <?php echo $yearrange['lmonth']  - 1; ?>;
-        var hmonth = <?php echo $yearrange['hmonth'] - 1; ?>;
+        var lyear = <?php echo $solar_daterange['lyear']; ?>;
+        var hyear = <?php echo $solar_daterange['hyear']; ?>;
+        var lmonth = <?php echo $solar_daterange['lmonth']  - 1; ?>;
+        var hmonth = <?php echo $solar_daterange['hmonth'] - 1; ?>;
 
         var month_map = ['Januari', 'Februari', 'Maart', 'April', 'Mei', 'Juni',
             'Juli', 'Augustus', 'September', 'Oktober', 'November', 'December'];
@@ -129,43 +126,40 @@ foreach ($data as $table => $tdata) {
         var week_total_data = [];
         var month_total_data = [];
 
-        <?php foreach ($data as $table => $tdata): ?>
+        <?php foreach ($solar as $table => $data): ?>
 
-        power_day_start.push(Date.UTC(<?php echo $tdata['ts']['year'] . ", " .
-                                                 $tdata['ts']['month'] . ", " .
-                                                 $tdata['ts']['day'] . ", " .
-                                                 $tdata['ts']['hour'] . ", " .
-                                                 $tdata['ts']['min'] . ", " .
-                                                 $tdata['ts']['sec'] ?>));
+        power_day_start.push(Date.UTC(
+            <?php echo implode(", ",
+                      datetime_mysql_to_js($data['current_graph'][0]->time)); ?>
+        ));
         power_day_data.push(
             [
                 <?php
-                    echo $tdata['ts']['pow'];
-                    while ($row = mysql_fetch_object($tdata['today_res'])) {
-                        echo ", " . ($row->hasdata ?
-                            ($row->grid_pow) : "-30");
-                    }
+                    echo implode(", ",
+                        array_map(
+                            function($row) {
+                                return $row->hasdata ? $row->grid_pow : -30;
+                            },
+                            $data['current_graph']));
                 ?>
             ]);
 
         day_total_data.push(
-            [<?php echo implode(',', $tdata['day_pow_data']); ?>]
+            [<?php echo implode(', ', $data['day_total']); ?>]
         );
         day_peak_data.push(
-            [<?php echo implode(',', $tdata['day_peakpow_data']); ?>]
+            [<?php echo implode(', ', $data['day_peak']); ?>]
         );
 
-        week_total_data.push(<?php echo $tdata['week_data']; ?>);
-        month_total_data.push(<?php echo $tdata['month_data']; ?>);
+        week_total_data.push(<?php echo $data['week']; ?>);
+        month_total_data.push(<?php echo $data['month']; ?>);
 
         <?php endforeach; ?>
 
-        var resol_start = Date.UTC(<?php echo $resol_ts_year . ", " .
-                                              $resol_ts_month . ", " .
-                                              $resol_ts_day . ", " .
-                                              $resol_ts_hour . ", " .
-                                              $resol_ts_min . ", " .
-                                              $resol_ts_sec ?>);
+        var resol_start = Date.UTC(
+                                <?php
+                                    echo implode(',', $resol_start_date);
+                                ?>);
         var resol_t1_data = [
                                 <?php
                                     echo implode(',', $resol_t1_data);
@@ -209,12 +203,6 @@ foreach ($data as $table => $tdata) {
                     Javascript needs to be turned on for this page.
                 </div>
             </noscript>
-
-            <!--[if lt IE 7]>
-                <div class="error">
-                    Internet Explorer 6 and lower is not supported.
-                </div>
-            <![endif]-->
         </div>
 
         <div id="intro">
@@ -311,40 +299,40 @@ foreach ($data as $table => $tdata) {
                         </tr>
                         <tr>
                             <td>Datum/Tijd</td>
-                            <?php foreach ($data as $t => $tdata): ?>
+                            <?php foreach ($solar as $t => $data): ?>
                             <td><span class="ct_time">
                                 <?php
-                                    echo $tdata['current_data']->time;
+                                    echo $data['last_status']->time;
                                 ?>
                             </span></td>
                             <?php endforeach; ?>
                         </tr>
                         <tr>
                             <td>PV voltage</td>
-                            <?php foreach ($data as $t => $tdata): ?>
+                            <?php foreach ($solar as $t => $data): ?>
                             <td><span class="ct_pv_volt">
                                 <?php
-                                    echo $tdata['current_data']->pv_volt / 10.;
+                                    echo $data['last_status']->pv_volt / 10.;
                                  ?> V
                             </span></td>
                             <?php endforeach; ?>
                         </tr>
                         <tr>
                             <td>PV amperage</td>
-                            <?php foreach ($data as $t => $tdata): ?>
+                            <?php foreach ($solar as $t => $data): ?>
                             <td><span class="ct_pv_amp">
                                 <?php
-                                    echo $tdata['current_data']->pv_amp / 100.;
+                                    echo $data['last_status']->pv_amp / 100.;
                                 ?> A
                             </span></td>
                             <?php endforeach; ?>
                         </tr>
                         <tr>
                             <td>Grid frequentie</td>
-                            <?php foreach ($data as $t => $tdata): ?>
+                            <?php foreach ($solar as $t => $data): ?>
                             <td><span class="ct_grid_freq">
                                 <?php
-                                    echo $tdata['current_data']->grid_freq
+                                    echo $data['last_status']->grid_freq
                                         / 100.;
                                 ?> Hz
                             </span></td>
@@ -352,26 +340,26 @@ foreach ($data as $table => $tdata) {
                         </tr>
                         <tr>
                             <td>Grid voltage</td>
-                            <?php foreach ($data as $t => $tdata): ?>
+                            <?php foreach ($solar as $t => $data): ?>
                             <td><span class="ct_grid_volt">
                                 <?php
-                                        echo $tdata['current_data']->grid_volt;
+                                        echo $data['last_status']->grid_volt;
                                 ?> V
                             </span></td>
                             <?php endforeach; ?>
                         </tr>
                         <tr>
                             <td>Grid vermogen</td>
-                            <?php foreach ($data as $t => $tdata): ?>
+                            <?php foreach ($solar as $t => $data): ?>
                             <td><span class="ct_pow">
                                 <span class="ct_grid_pow">
                                 <?php
-                                    echo $tdata['current_data']->grid_pow;
+                                    echo $data['last_status']->grid_pow;
                                 ?> W
                                 </span>
                                 <span class="ct_peak_pow add_today">
                                 <?php
-                                    echo $tdata['peak_pow'];
+                                    echo $data['today_peak'];
                                 ?> W piek vandaag
                                 </span>
                             </span></td>
@@ -379,17 +367,17 @@ foreach ($data as $table => $tdata) {
                         </tr>
                         <tr>
                             <td>Totaal vermogen</td>
-                            <?php foreach ($data as $t => $tdata): ?>
+                            <?php foreach ($solar as $t => $data): ?>
                             <td><span class="ct_tpow">
                                 <span class="ct_total_pow">
                                 <?php
-                                    echo $tdata['current_data']->total_pow
+                                    echo $data['last_status']->total_pow
                                         / 100.;
                                 ?> kWh
                                 </span>
                                 <span class="ct_today_pow add_today">
                                 <?php
-                                    echo $tdata['today_pow'];
+                                    echo $data['today_total'];
                                 ?> kWh vandaag
                                 </span>
                             </span></td>
@@ -397,19 +385,20 @@ foreach ($data as $table => $tdata) {
                         </tr>
                         <tr>
                             <td>Opbrengst euro's</td>
-                            <?php foreach ($data as $t => $tdata): ?>
+                            <?php foreach ($solar as $t => $data): ?>
                             <td>
                                 <span class="ct_total_money">
                                     &euro;
                                     <?php
-                                        echo sprintf('%.2f', $tdata['money']);
+                                    echo sprintf('%.2f',
+                                        $data['money_total']);
                                     ?>
                                 </span>
                                 <span class="ct_today_money add_today">
                                     &euro;
                                     <?php
                                         echo sprintf('%.2f',
-                                            $tdata['money_today']);
+                                            $data['money_today']);
                                     ?>
                                     vandaag
                                 </span>
@@ -418,21 +407,21 @@ foreach ($data as $table => $tdata) {
                         </tr>
                         <tr>
                             <td>Temperatuur</td>
-                            <?php foreach ($data as $t => $tdata): ?>
+                            <?php foreach ($solar as $t => $data): ?>
                             <td><span class="ct_temp">
                                 <?php
-                                    echo $tdata['current_data']->temp;
+                                    echo $data['last_status']->temp;
                                 ?>
                             </span></td>
                             <?php endforeach; ?>
                         </tr>
                         <tr>
                             <td>Tijd actief</td>
-                            <?php foreach ($data as $t => $tdata): ?>
+                            <?php foreach ($solar as $t => $data): ?>
                             <td><span class="ct_optime">
                                 <?php
                                     echo mins2verbose(
-                                        $tdata['current_data']->optime);
+                                        $data['last_status']->optime);
                                 ?>
                             </span></td>
                             <?php endforeach; ?>
@@ -487,29 +476,25 @@ foreach ($data as $table => $tdata) {
                 <br class="clear" />
 
 
-                <?php $flags_res = $data[$db_tables_solar[0]]['flags_res']; ?>
-
-                <?php if (mysql_num_rows($flags_res)): ?>
+                <?php if (count($solar_flags)): ?>
                 <table id="flagstable" style="margin-top: 30px;">
                     <tr>
                         <th colspan="3">Laatste meldingen Soladin</th>
                     </tr>
 
-                    <?php while ($row = mysql_fetch_object($flags_res)): ?>
+                    <?php foreach($solar_flags as $row): ?>
                         <tr>
                             <td><?php echo $row->time; ?></td>
-                            <td>#<?php echo $row->num; ?></td>
+                            <td>#<?php echo $row->device; ?></td>
                             <td><?php echo flags2html($row->flags); ?></td>
                         </tr>
-                    <?php endwhile; ?>
+                    <?php endforeach; ?>
 
                 </table>
                 <?php endif; ?>
             </div>
         </div>
         <div id="footer">
-
-            <!--<a href="http://websvn.chozo.nl/listing.php?repname=dump&path=%2FWeb%2Fsolar%2F">Source code</a><br />-->
             <a href="http://git.chozo.nl/solar.git/">Source code</a><br />
             Made by <a href="http://chozo.nl/">Chozo.nl</a>
         </div>
