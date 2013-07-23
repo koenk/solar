@@ -23,12 +23,6 @@ foreach ($db_tables_solar as $table) {
     $data = Array();
 
     $data['current_graph'] = solar\current_graph($table);
-    list($data['day_total'], $data['day_peak']) =
-        solar\daymode($table,
-            $solar_daterange['hmonth'],
-            $solar_daterange['hyear']);
-    $data['week'] = solar\weekmode($table, $solar_daterange['hyear']);
-    $data['month'] = solar\monthmode($table, $solar_daterange['hyear']);
 
     $solar[$table] = $data;
 }
@@ -137,15 +131,11 @@ if (!$resol_current_data) die("No data!");
                 ?>
             ]);
 
-        day_total_data.push(
-            [<?php echo implode(', ', $data['day_total']); ?>]
-        );
-        day_peak_data.push(
-            [<?php echo implode(', ', $data['day_peak']); ?>]
-        );
-
-        week_total_data.push(<?php echo $data['week']; ?>);
-        month_total_data.push(<?php echo $data['month']; ?>);
+        // These are loaded later using AJAX
+        day_total_data.push([]);
+        day_peak_data.push([]);
+        week_total_data.push([]);
+        month_total_data.push([]);
 
         <?php endforeach; ?>
 

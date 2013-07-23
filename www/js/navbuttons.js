@@ -99,6 +99,15 @@ $(function() {
 
         return false;
     });
+
+    // Load initial data
+    $.getJSON("json.php", {'action': 'day',
+                           'year': day_cur_year,
+                           'month': day_cur_month + 1}, day_nav_getjson);
+    $.getJSON("json.php", {'action': 'week', 'year': week_cur_year},
+        week_nav_getjson);
+    $.getJSON("json.php", {'action': 'month', 'year': month_cur_year},
+        month_nav_getjson);
 });
 
 
