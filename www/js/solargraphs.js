@@ -1,4 +1,6 @@
-var highchartsOptions = Highcharts.getOptions(); 
+var colors = Highcharts.getOptions().colors;
+colors[1] = "#AA4643";
+Highcharts.setOptions({colors: colors});
 
 var pow_chart;
 $(document).ready(function() {
@@ -22,7 +24,7 @@ $(document).ready(function() {
             pointStart: day_total_start,
             yAxis: 1,
             data: day_peak_data[i],
-            color: highchartsOptions.colors[1]
+            color: colors[1]
         });
         day_chart_series.push({
             type: 'column',
@@ -30,7 +32,7 @@ $(document).ready(function() {
             pointInterval: 24 * 60 * 60 * 1000, // Day
             pointStart: day_total_start, // See the index for this var
             data: day_total_data[i], // See the index for this var
-            color: '#4572A7'
+            color: colors[0]
         });
     }
     var week_chart_series = [];
@@ -143,6 +145,9 @@ $(document).ready(function() {
 			labels: {
 				formatter: function() {
 					return this.value + ' KWh';
+				},
+				style: {
+					color: colors[0]
 				}
 			}
 		}, { // Seconday (right, Watt)
@@ -158,7 +163,7 @@ $(document).ready(function() {
 					return this.value + ' W';
 				},
 				style: {
-					color: '#4572A7'
+					color: colors[1]
 				}
 			},
 			opposite: true
@@ -429,7 +434,8 @@ $(document).ready(function() {
                 name: 'Temp. Panelen',
                 pointInterval: 5 * 60 * 1000,
                 pointStart: resol_start, // See the index for this var
-                data: resol_t1_data // See the index for this var
+                data: resol_t1_data, // See the index for this var
+                color: "#AA4643"
             },{
                 type: 'spline',
                 name: 'Temp. Boiler',
