@@ -83,7 +83,7 @@ $(document).ready(function() {
                   Highcharts.dateFormat('%a %e-%m-%Y %H:%M', this.x) + '<br/>'+
                   point.y + ' Watt';
             },
-			shared: true               
+			shared: true
 		},
 		legend: {
 			enabled: false
@@ -107,15 +107,15 @@ $(document).ready(function() {
 					}
 				}
 			}
-		}, 
+		},
 		series: pow_chart_series
 		}
     );
-		
+
     // -----------------------------------
     // -- Day total ( + peak that day)
     // -----------------------------------
-		
+
 	day_chart = new Highcharts.Chart({
 		credits: {enabled: false},
 		chart: {
@@ -211,15 +211,15 @@ $(document).ready(function() {
 					}
 				}
 			}
-		}, 
+		},
 		series: day_chart_series
 		}
     );
-    
+
     // -----------------------------------
     // -- WEEK
     // -----------------------------------
-    
+
     week_chart = new Highcharts.Chart({
 		credits: {enabled: false},
 		chart: {
@@ -266,11 +266,11 @@ $(document).ready(function() {
 		series: week_chart_series
 		}
     );
-    
+
     // -----------------------------------
     // -- MONTH
     // -----------------------------------
-    
+
     month_chart = new Highcharts.Chart({
 		credits: {enabled: false},
 		chart: {
@@ -313,16 +313,16 @@ $(document).ready(function() {
 		series: month_chart_series
 		}
     );
-    
+
     // -----------------------------------
     // -- RESOL
     // -----------------------------------
-    
+
     mintemp1 = Math.min.apply(Math, resol_t1_data);
     mintemp2 = Math.min.apply(Math, resol_t2_data);
     mintemp3 = Math.min.apply(Math, resol_t3_data);
     mintemp = Math.min(mintemp1, mintemp2, mintemp3, 0.0);
-    
+
     resol_chart = new Highcharts.Chart({
 		credits: {enabled: false},
 		chart: {
@@ -416,7 +416,7 @@ $(document).ready(function() {
 					}
 				}
 			}
-		}, 
+		},
 		series: [{
                 type: 'area',
                 name: 'Pomp',
