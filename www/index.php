@@ -422,8 +422,8 @@ if (!$resol_current_data) die("No data!");
             </div>
         </div>
         <div id="footer">
-            <a href="http://git.chozo.nl/solar.git/">Source code</a><br />
-            Made by <a href="http://chozo.nl/">Chozo.nl</a>
+            <a href="https://github.com/koenk/solar">Source code</a><br />
+            Made by <a href="https://github.com/koenk">Koen Koning</a>
         </div>
     </div>
 </body>
