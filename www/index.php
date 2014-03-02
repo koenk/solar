@@ -11,36 +11,36 @@ if (!include("solar.php"))
 
 error_reporting(-1);
 
-mysql_connect($db_host, $db_user, $db_password) or
+global $db;
+$db = new mysqli($db_host, $db_user, $db_password, $db_database) or
     die("Could not connect to database!");
-mysql_select_db($db_database) or die("Could not find database!");
 
-$solar_daterange = solar\daterange($db_tables_solar);
-$solar_flags = solar\flags($db_tables_solar);
+$solar_daterange = solar\daterange($db, $db_tables_solar);
+$solar_flags = solar\flags($db, $db_tables_solar);
 
 $solar = Array();
 foreach ($db_tables_solar as $table) {
     $data = Array();
 
-    $data['current_graph'] = solar\current_graph($table);
+    $data['current_graph'] = solar\current_graph($db, $table);
 
     $solar[$table] = $data;
 }
 
 // Resol stats (3 temps, 1 pump)
-$resol_res = mysql_query("
+$resol_res = $db->query("
 SELECT `time`, `t1`, `t2`, `t3`, `p1`
 FROM `$db_table_resol`
 WHERE DATEDIFF(CURDATE(), `time`) < 2
 ORDER BY `time`");
 if (!$resol_res)
-    die('Invalid query: ' . mysql_error());
+    die('Invalid query: ' . $db->error());
 $resol_start_date = NULL;
 $resol_t1_data = Array();
 $resol_t2_data = Array();
 $resol_t3_data = Array();
 $resol_p1_data = Array();
-while ($row = mysql_fetch_object($resol_res)) {
+while ($row = $resol_res->fetch_object()) {
     if ($resol_start_date === NULL)
         $resol_start_date = datetime_mysql_to_js($row->time);
     $resol_t1_data[] = $row->t1/10.;
@@ -50,13 +50,13 @@ while ($row = mysql_fetch_object($resol_res)) {
 }
 
 // lazy
-$resol_cur_res = mysql_query("
+$resol_cur_res = $db->query("
 SELECT `time`, `t1`, `t2`, `t3`, `p1`
 FROM `$db_table_resol`
 ORDER BY `time` DESC
 LIMIT 1");
-if (!$resol_cur_res) die('Invalid query: ' . mysql_error());
-$resol_current_data = mysql_fetch_object($resol_cur_res);
+if (!$resol_cur_res) die('Invalid query: ' . $db->error());
+$resol_current_data = $resol_cur_res->fetch_object();
 if (!$resol_current_data) die("No data!");
 
 

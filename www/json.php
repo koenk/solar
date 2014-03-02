@@ -7,8 +7,7 @@ if (!include("functions.php"))
 if (!include("solar.php"))
     die("{\"error\": \"solar.php not found!\"}");
 
-mysql_connect($db_host, $db_user, $db_password) or die("{\"error\": \"Could not connect to database!\"}");
-mysql_select_db($db_database) or die("{\"error\": \"Could not find database!\"}");
+$db = new mysqli($db_host, $db_user, $db_password, $db_database) or die("{\"error\": \"Could not connect to database!\"}");
 
 
 $action = isset($_GET['action']) ?  $_GET['action'] : 'stats';
@@ -21,11 +20,11 @@ if ($action == 'stats'):
 
     <?php
         list($current_status, $peak_today, $total_today) =
-            solar\last_status($table);
+            solar\last_status($db, $table);
         $money_total =
-            solar\money_total($table, $db_table_prices, $db_table_holidays);
+            solar\money_total($db, $table, $db_table_prices, $db_table_holidays);
         $money_today =
-            solar\money_today($table, $db_table_prices, $db_table_holidays);
+            solar\money_today($db, $table, $db_table_prices, $db_table_holidays);
     ?>
 
     <?php if ($i++ > 0) echo ","; ?>
@@ -52,14 +51,14 @@ if ($action == 'stats'):
     <?php
 elseif ($action == 'day'):
     $year = isset($_GET['year']) ? $_GET['year'] : 2011;
-    $year = mysql_real_escape_string($year);
+    $year = $db->real_escape_string($year);
     $month = isset($_GET['month']) ? $_GET['month'] : 7;
-    $month = mysql_real_escape_string($month);
+    $month = $db->real_escape_string($month);
 
     $pow = Array();
     $peak = Array();
     foreach ($db_tables_solar as $table) {
-        list($tpow, $tpeak) = solar\daymode($table, $month, $year);
+        list($tpow, $tpeak) = solar\daymode($db, $table, $month, $year);
         $pow[] = '[' . implode(', ', $tpow) . ']';
         $peak[] = '[' . implode(', ', $tpeak) . ']';
     }
@@ -74,11 +73,11 @@ elseif ($action == 'day'):
     <?php
 elseif ($action == 'week'):
     $year = isset($_GET['year']) ? $_GET['year'] : 2011;
-    $year = mysql_real_escape_string($year);
+    $year = $db->real_escape_string($year);
 
     $data = Array();
     foreach ($db_tables_solar as $table)
-        $data[] = solar\weekmode($table, $year);
+        $data[] = solar\weekmode($db, $table, $year);
 
     ?>
     {"year":    <?php echo $year; ?>,
@@ -86,25 +85,25 @@ elseif ($action == 'week'):
     <?php
 elseif ($action == 'month'):
     $year = isset($_GET['year']) ? $_GET['year'] : 2011;
-    $year = mysql_real_escape_string($year);
+    $year = $db->real_escape_string($year);
 
     $data = Array();
     foreach ($db_tables_solar as $table)
-        $data[] = solar\monthmode($table, $year);
+        $data[] = solar\monthmode($db, $table, $year);
 
     ?>
     {"year":    <?php echo $year; ?>,
      "data":    [<?php echo implode(', ', $data); ?>]}
     <?php
 elseif ($action == 'resol'):
-    $res = mysql_query(
+    $res = $db->query(
     "SELECT `time`, `t1`, `t2`, `t3`, `p1`
     FROM `$db_table_resol`
     WHERE DATEDIFF(CURDATE(), `time`) < 2
     ORDER BY `time`");
-    if (!$res) die('{"error": "'.mysql_error().'"}');
+    if (!$res) die('{"error": "'.$db->error().'"}');
     // Same as first one: we need starting data and stuff
-    $row = mysql_fetch_object($res);
+    $row = $db->fetch_object($res);
     if (!$row) die("{\"error\": \"No data!\"}");
     $ts =       explode(" ", $row->time);
     $ts_date =  explode("-", $ts[0]);
@@ -119,20 +118,20 @@ elseif ($action == 'resol'):
     $t2_data = Array($row->t2/10.);
     $t3_data = Array($row->t3/10.);
     $p1_data = Array($row->p1);
-    while ($row = mysql_fetch_object($res)) {
+    while ($row = $db->fetch_object($res)) {
         $resol_t1_data[] = $row->t1/10.;
         $resol_t2_data[] = $row->t2/10.;
         $resol_t3_data[] = $row->t3/10.;
         $resol_p1_data[] = $row->p1;
     }
 
-    $res = mysql_query("
+    $res = $db->query("
     SELECT `time`, `t1`, `t2`, `t3`, `p1`
     FROM `$db_table_resol`
     ORDER BY `time` DESC
     LIMIT 1");
-    if (!$res) die('{"error": "'.mysql_error().'"}');
-    $current_data = mysql_fetch_object($res);
+    if (!$res) die('{"error": "'.$db->error().'"}');
+    $current_data = $db->fetch_object($res);
     if (!$current_data) die("{\"error\": \"No data!\"}");
 
     // Why are all those things casted to an int, you may ask? Otherwise, it may
